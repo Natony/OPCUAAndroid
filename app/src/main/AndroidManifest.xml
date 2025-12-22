@@ -17,6 +17,7 @@
         android:theme="@style/Theme.S7OpcUaApp"
         android:largeHeap="true"
         android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
