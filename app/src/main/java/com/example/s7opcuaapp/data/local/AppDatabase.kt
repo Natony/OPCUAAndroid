@@ -15,7 +15,7 @@ import com.example.s7opcuaapp.data.local.dao.*
         DeviceAccessLog::class,
         DeviceEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
