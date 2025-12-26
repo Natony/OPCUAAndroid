@@ -87,22 +87,31 @@ class PlcApiClient(
     suspend fun connect(plcId: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Connecting to server: $serverUrl")
-            currentPlcId = plcId
 
-            // First check if server is reachable via REST
+            // First check if server is reachable via REST and get PLC list
             val statusResponse = apiService.getPlcStatus()
             if (!statusResponse.isSuccessful) {
                 Log.e(TAG, "Server not reachable: ${statusResponse.code()}")
                 return@withContext false
             }
 
-            // If plcId specified, connect to that PLC
-            if (plcId != null) {
-                val connectResponse = apiService.connectPlc(plcId)
+            // Get the first connected PLC's ID from server (not local device ID)
+            val plcList = statusResponse.body()?.data ?: emptyList()
+            val serverPlcId = plcList.firstOrNull()?.plcId
+
+            if (serverPlcId != null) {
+                Log.d(TAG, "Found server PLC ID: $serverPlcId")
+                currentPlcId = serverPlcId
+
+                // Connect to the PLC using server's PLC ID
+                val connectResponse = apiService.connectPlc(serverPlcId)
                 if (!connectResponse.isSuccessful || connectResponse.body()?.success != true) {
-                    Log.e(TAG, "Failed to connect to PLC: $plcId")
-                    return@withContext false
+                    Log.w(TAG, "Connect PLC returned: ${connectResponse.body()?.error}, but continuing...")
+                    // Don't fail - PLC might already be connected
                 }
+            } else {
+                Log.w(TAG, "No PLCs found on server, using local ID")
+                currentPlcId = plcId
             }
 
             // Connect to SignalR for real-time updates
@@ -111,14 +120,14 @@ class PlcApiClient(
                 Log.w(TAG, "SignalR connection failed, will use polling")
             }
 
-            // Subscribe to specific PLC if specified
-            if (plcId != null) {
-                signalRClient.subscribeToPlc(plcId)
+            // Subscribe to specific PLC if we have an ID
+            currentPlcId?.let { id ->
+                signalRClient.subscribeToPlc(id)
             }
 
             _isConnected.value = true
             onConnectionRestored?.invoke()
-            Log.d(TAG, "Connected successfully")
+            Log.d(TAG, "Connected successfully with PLC ID: $currentPlcId")
             true
 
         } catch (e: Exception) {
