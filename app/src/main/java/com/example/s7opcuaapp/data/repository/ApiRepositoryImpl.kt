@@ -119,8 +119,8 @@ class ApiRepositoryImpl @Inject constructor(
                 if (!isConnected.get()) {
                     Log.d(TAG, "Attempting connection (failures: $consecutiveFailures)")
 
-                    // Create API client
-                    val serverUrl = "http://${device.ipAddress}:${device.port}"
+                    // Create API client - use apiPort for REST API connection
+                    val serverUrl = "http://${device.ipAddress}:${device.apiPort}"
                     apiClient = PlcApiClient(serverUrl)
 
                     // Set connection callbacks

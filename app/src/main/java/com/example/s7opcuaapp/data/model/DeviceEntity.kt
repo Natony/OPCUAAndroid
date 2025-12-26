@@ -13,6 +13,7 @@ data class DeviceEntity(
     val name: String,
     val ipAddress: String,
     val port: Int = 4840,
+    val apiPort: Int = 5000,
     val opcUsername: String = "",
     val opcPassword: String = "",
     val useOpcUa: Boolean = true

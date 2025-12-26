@@ -50,6 +50,7 @@ fun RootNavHost(navController: NavHostController) {
                 onNewDeviceNameChanged = { deviceName -> configViewModel.onNewDeviceNameChanged(deviceName) },
                 onNewDeviceIpChanged = { deviceIp -> configViewModel.onNewDeviceIpChanged(deviceIp) },
                 onNewDevicePortChanged = { devicePort -> configViewModel.onNewDevicePortChanged(devicePort) },
+                onNewDeviceApiPortChanged = { apiPort -> configViewModel.onNewDeviceApiPortChanged(apiPort) },
                 onNewDeviceUsernameChanged = { deviceUsername -> configViewModel.onNewDeviceUsernameChanged(deviceUsername) },
                 onNewDevicePasswordChanged = { devicePassword -> configViewModel.onNewDevicePasswordChanged(devicePassword) },
                 onAddDevice = { configViewModel.onAddDevice() },

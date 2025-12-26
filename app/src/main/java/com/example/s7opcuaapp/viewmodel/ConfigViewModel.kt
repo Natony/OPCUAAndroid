@@ -16,6 +16,7 @@ data class ConfigUiState(
     val newDeviceName: String = "",
     val newDeviceIp: String = "",
     val newDevicePort: String = "4840",
+    val newDeviceApiPort: String = "5000",
     val newDeviceUsername: String = "",
     val newDevicePassword: String = "",
     val errorMessage: String? = null,
@@ -58,6 +59,10 @@ class ConfigViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(newDevicePort = new)
     }
 
+    fun onNewDeviceApiPortChanged(new: String) {
+        _uiState.value = _uiState.value.copy(newDeviceApiPort = new)
+    }
+
     fun onNewDeviceUsernameChanged(new: String) {
         _uiState.value = _uiState.value.copy(newDeviceUsername = new)
     }
@@ -71,16 +76,18 @@ class ConfigViewModel @Inject constructor(
         val name = state.newDeviceName.trim()
         val ip = state.newDeviceIp.trim()
         val portStr = state.newDevicePort.trim()
+        val apiPortStr = state.newDeviceApiPort.trim()
         val username = state.newDeviceUsername.trim()
         val password = state.newDevicePassword.trim()
 
-        if (name.isEmpty() || ip.isEmpty() || portStr.isEmpty()) {
-            _uiState.value = state.copy(errorMessage = "Tên, IP, Port không được để trống")
+        if (name.isEmpty() || ip.isEmpty() || portStr.isEmpty() || apiPortStr.isEmpty()) {
+            _uiState.value = state.copy(errorMessage = "Tên, IP, Port, API Port không được để trống")
             return
         }
 
         val port = portStr.toIntOrNull()
-        if (port == null || port <= 0) {
+        val apiPort = apiPortStr.toIntOrNull()
+        if (port == null || port <= 0 || apiPort == null || apiPort <= 0) {
             _uiState.value = state.copy(errorMessage = "Port không hợp lệ")
             return
         }
@@ -92,6 +99,7 @@ class ConfigViewModel @Inject constructor(
                     name = name,
                     ipAddress = ip,
                     port = port,
+                    apiPort = apiPort,
                     opcUsername = username,
                     opcPassword = password
                 )
@@ -113,6 +121,7 @@ class ConfigViewModel @Inject constructor(
                     newDeviceName = "",
                     newDeviceIp = "",
                     newDevicePort = "4840",
+                    newDeviceApiPort = "5000",
                     newDeviceUsername = "",
                     newDevicePassword = "",
                     errorMessage = null,
@@ -127,6 +136,7 @@ class ConfigViewModel @Inject constructor(
                     name = name,
                     ipAddress = ip,
                     port = port,
+                    apiPort = apiPort,
                     opcUsername = username,
                     opcPassword = password,
                     useOpcUa = true
@@ -140,6 +150,7 @@ class ConfigViewModel @Inject constructor(
                     newDeviceName = "",
                     newDeviceIp = "",
                     newDevicePort = "4840",
+                    newDeviceApiPort = "5000",
                     newDeviceUsername = "",
                     newDevicePassword = "",
                     errorMessage = null
@@ -155,6 +166,7 @@ class ConfigViewModel @Inject constructor(
             newDeviceName = device.name,
             newDeviceIp = device.ipAddress,
             newDevicePort = device.port.toString(),
+            newDeviceApiPort = device.apiPort.toString(),
             newDeviceUsername = device.opcUsername,
             newDevicePassword = device.opcPassword
         )
@@ -167,6 +179,7 @@ class ConfigViewModel @Inject constructor(
             newDeviceName = "",
             newDeviceIp = "",
             newDevicePort = "4840",
+            newDeviceApiPort = "5000",
             newDeviceUsername = "",
             newDevicePassword = "",
             errorMessage = null

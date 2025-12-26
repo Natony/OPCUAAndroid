@@ -29,6 +29,7 @@ fun ConfigScreen(
     onNewDeviceNameChanged: (String) -> Unit,
     onNewDeviceIpChanged: (String) -> Unit,
     onNewDevicePortChanged: (String) -> Unit,
+    onNewDeviceApiPortChanged: (String) -> Unit,
     onNewDeviceUsernameChanged: (String) -> Unit,
     onNewDevicePasswordChanged: (String) -> Unit,
     onAddDevice: () -> Unit,
@@ -157,7 +158,15 @@ fun ConfigScreen(
                         OutlinedTextField(
                             value = uiState.newDevicePort,
                             onValueChange = onNewDevicePortChanged,
-                            label = { Text("Port", fontSize = 12.sp) },
+                            label = { Text("OPC Port", fontSize = 12.sp) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = uiState.newDeviceApiPort,
+                            onValueChange = onNewDeviceApiPortChanged,
+                            label = { Text("API Port", fontSize = 12.sp) },
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
@@ -321,6 +330,7 @@ fun ConfigScreenWithDevicesPreview() {
         onNewDeviceNameChanged = {},
         onNewDeviceIpChanged = {},
         onNewDevicePortChanged = {},
+        onNewDeviceApiPortChanged = {},
         onNewDeviceUsernameChanged = {},
         onNewDevicePasswordChanged = {},
         onAddDevice = {},

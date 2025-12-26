@@ -238,6 +238,9 @@ fun MainNavGraph(rootNavController: NavHostController) {
                     onNewDevicePortChanged = { devicePort ->
                         configViewModel.onNewDevicePortChanged(devicePort)
                     },
+                    onNewDeviceApiPortChanged = { apiPort ->
+                        configViewModel.onNewDeviceApiPortChanged(apiPort)
+                    },
                     onNewDeviceUsernameChanged = { deviceUsername ->
                         configViewModel.onNewDeviceUsernameChanged(deviceUsername)
                     },
