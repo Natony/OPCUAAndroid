@@ -53,9 +53,11 @@ class ApiRepositoryImpl @Inject constructor(
     private var connectionJob: Job? = null
     private var signalRJob: Job? = null
 
-    // Node IDs configuration (same as before)
-    private val boolNodeIds = (3..17).map { "ns=4;i=$it" }
-    private val intNodeIds = (18..45).map { "ns=4;i=$it" }
+    // Node IDs configuration - must match WPF server tags
+    // bool1-bool15: ns=4;i=13 to ns=4;i=27
+    // int1-int31: ns=4;i=28 to ns=4;i=58
+    private val boolNodeIds = (13..27).map { "ns=4;i=$it" }
+    private val intNodeIds = (28..58).map { "ns=4;i=$it" }
 
     // Loading tracker
     private val totalNodes = boolNodeIds.size + intNodeIds.size
@@ -208,15 +210,17 @@ class ApiRepositoryImpl @Inject constructor(
                     val nodeIndex = nodeId.substringAfter("i=").toIntOrNull() ?: return@forEach
 
                     when {
-                        nodeIndex in 3..17 -> {
-                            val index = nodeIndex - 3
+                        // Bool nodes: i=13 to i=27 (bool1-bool15)
+                        nodeIndex in 13..27 -> {
+                            val index = nodeIndex - 13
                             val value = parseBoolean(tag.value)
                             dataBuffer.updateBool(index, value)
                             loadingTracker.markLoaded(nodeId)
                             loadedCount++
                         }
-                        nodeIndex in 18..45 -> {
-                            val index = nodeIndex - 18
+                        // Int nodes: i=28 to i=58 (int1-int31)
+                        nodeIndex in 28..58 -> {
+                            val index = nodeIndex - 28
                             val value = parseInt(tag.value)
                             dataBuffer.updateInt(index, value)
                             loadingTracker.markLoaded(nodeId)
@@ -252,13 +256,15 @@ class ApiRepositoryImpl @Inject constructor(
             val nodeIndex = nodeId.substringAfter("i=").toIntOrNull() ?: return
 
             when {
-                nodeIndex in 3..17 -> {
-                    val index = nodeIndex - 3
+                // Bool nodes: i=13 to i=27 (bool1-bool15)
+                nodeIndex in 13..27 -> {
+                    val index = nodeIndex - 13
                     val value = parseBoolean(update.value)
                     dataBuffer.updateBool(index, value)
                 }
-                nodeIndex in 18..45 -> {
-                    val index = nodeIndex - 18
+                // Int nodes: i=28 to i=58 (int1-int31)
+                nodeIndex in 28..58 -> {
+                    val index = nodeIndex - 28
                     val value = parseInt(update.value)
                     dataBuffer.updateInt(index, value)
                 }
