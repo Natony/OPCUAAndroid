@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * @param totalKeys Tổng số phần tử cần load.
  */
-class LoadingTracker<K>(private val totalKeys: Int) {
+class LoadingTracker<K>(private var totalKeys: Int) {
     private val seen = mutableSetOf<K>()
     private val _percent = MutableStateFlow(0)
 
@@ -21,6 +21,16 @@ class LoadingTracker<K>(private val totalKeys: Int) {
     fun markLoaded(key: K) {
         if (seen.add(key)) {
             _percent.value = (seen.size * 100) / totalKeys.coerceAtLeast(1)
+        }
+    }
+
+    /** Update total keys based on actual server data */
+    @Synchronized
+    fun updateTotalKeys(newTotal: Int) {
+        if (newTotal > 0) {
+            totalKeys = newTotal
+            // Recalculate percent with new total
+            _percent.value = if (seen.isEmpty()) 0 else (seen.size * 100) / totalKeys
         }
     }
 

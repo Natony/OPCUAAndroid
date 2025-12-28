@@ -202,6 +202,19 @@ class ApiRepositoryImpl @Inject constructor(
             Log.d(TAG, "Loading initial data...")
 
             val tags = apiClient?.readAllTags() ?: emptyList()
+
+            // Count relevant tags that match our node ID ranges
+            val relevantTagCount = tags.count { tag ->
+                val nodeIndex = tag.nodeId.substringAfter("i=").toIntOrNull() ?: 0
+                nodeIndex in 13..27 || nodeIndex in 28..58
+            }
+
+            // Update total keys based on actual tags from server
+            if (relevantTagCount > 0) {
+                Log.d(TAG, "Updating total keys to $relevantTagCount (from $totalNodes)")
+                loadingTracker.updateTotalKeys(relevantTagCount)
+            }
+
             var loadedCount = 0
 
             tags.forEach { tag ->
