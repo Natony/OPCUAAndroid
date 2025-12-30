@@ -59,9 +59,9 @@ class StatusLockConfig @Inject constructor(
             0 -> StatusLockRule(
                 statusValue = status,
                 description = description,
-                lockAllButtons = true,
+                lockAllButtons = false, // Status 0 (default/uninitialized) - don't lock buttons
                 isEnabled = true,
-                exemptButtons = setOf(10) // Emergency stop
+                exemptButtons = emptySet()
             )
             1 -> StatusLockRule(
                 statusValue = status,

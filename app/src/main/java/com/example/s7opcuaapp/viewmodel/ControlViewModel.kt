@@ -591,6 +591,11 @@ class ControlViewModel @Inject constructor(
             statusLockConfig.getLockedButtonsForStatus(currentStatus)
         }
 
+        // Debug logging for status-based locking
+        if (lockedButtons.isNotEmpty()) {
+            Log.d("ControlVM", "📋 Status=$currentStatus, locked buttons: ${lockedButtons.size} buttons")
+        }
+
         _uiState.update {
             it.copy(
                 plcData = data,

@@ -95,10 +95,6 @@ internal fun MainControlContent(
                 )
             }
         }
-        // Connection lost notification
-        if (uiState.errorMessage?.contains("Connection lost") == true) {
-            ConnectionLostNotification(onRetryConnection = onRetryConnection)
-        }
 
         // Performance overlay in debug
 //        val isInPreview = LocalInspectionMode.current
