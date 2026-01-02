@@ -54,8 +54,8 @@ class ControlViewModel @Inject constructor(
     private var connectionStarted = false
     private var dataObservationJob: Job? = null
 
-    // UI update throttling
-    private val uiUpdateThrottle = 300L
+    // UI update throttling - reduced for faster response
+    private val uiUpdateThrottle = 50L
     private var lastUiUpdateTime = 0L
 
     // THREAD-SAFE: Use ConcurrentHashMap for button states

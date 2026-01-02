@@ -32,9 +32,9 @@ class PlcDataBuffer @Inject constructor(
     private val lastEmitTime = AtomicLong(0)
     private val pendingEmit = AtomicBoolean(false)
 
-    // Configuration - INCREASED VALUES
-    private val MIN_EMIT_INTERVAL = 1000L // Increased from 500ms to 1000ms
-    private val BATCH_DELAY = 250L // Increased from 100ms to 250ms
+    // Configuration - Optimized for responsiveness
+    private val MIN_EMIT_INTERVAL = 100L // Reduced from 1000ms to 100ms for faster UI updates
+    private val BATCH_DELAY = 50L // Reduced from 250ms to 50ms for faster batch processing
 
     // Output flow
     private val _dataFlow = MutableSharedFlow<PlcData>(
@@ -50,8 +50,8 @@ class PlcDataBuffer @Inject constructor(
 
     private var emitJob: Job? = null
 
-    // Priority tracking for critical values
-    private val criticalBoolIndices = setOf(4, 10) // Power, E-Stop
+    // Priority tracking for critical values - immediate UI update
+    private val criticalBoolIndices = setOf(0, 1, 2, 3, 4, 10) // Manual buttons (0-3), Power (4), E-Stop (10)
     private val criticalIntIndices = setOf<Int>() // Add critical int indices if needed
 
     // Track last emitted data to avoid redundant updates

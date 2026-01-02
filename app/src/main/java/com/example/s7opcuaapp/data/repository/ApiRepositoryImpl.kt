@@ -335,10 +335,14 @@ class ApiRepositoryImpl @Inject constructor(
                     throw Exception("Write failed")
                 }
 
+                // Optimistic UI update - immediately update local buffer
+                // This gives instant feedback without waiting for SignalR
+                dataBuffer.updateBool(index, value)
+
                 val writeTime = System.currentTimeMillis() - startTime
                 performanceMonitor.recordNetworkLatency(writeTime)
 
-                Log.d(TAG, "WriteBoolean[$index]=$value in ${writeTime}ms")
+                Log.d(TAG, "WriteBoolean[$index]=$value in ${writeTime}ms (optimistic update)")
             }
         } catch (e: Exception) {
             Log.e(TAG, "WriteBoolean failed", e)
