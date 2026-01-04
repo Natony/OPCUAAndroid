@@ -90,4 +90,97 @@ interface PlcApiService {
         @Path("nodeId", encoded = true) nodeId: String,
         @Body request: WriteTagRequest
     ): Response<ApiResponse<Boolean>>
+
+    // ============== Auth Endpoints ==============
+
+    /**
+     * Login with username and password
+     */
+    @POST("api/auth/login")
+    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
+    /**
+     * Refresh access token
+     */
+    @POST("api/auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<LoginResponse>
+
+    /**
+     * Logout (invalidate refresh token)
+     */
+    @POST("api/auth/logout")
+    suspend fun logout(): Response<ApiResponse<Boolean>>
+
+    /**
+     * Get current user info
+     */
+    @GET("api/auth/me")
+    suspend fun getCurrentUser(): Response<ApiResponse<UserDto>>
+
+    /**
+     * Change password
+     */
+    @POST("api/auth/change-password")
+    suspend fun changePassword(@Body request: ChangePasswordRequest): Response<ApiResponse<Boolean>>
+
+    // ============== User Management Endpoints (Admin only) ==============
+
+    /**
+     * Get all users
+     */
+    @GET("api/users")
+    suspend fun getAllUsers(): Response<ApiResponse<List<UserDto>>>
+
+    /**
+     * Create new user
+     */
+    @POST("api/users")
+    suspend fun createUser(@Body request: CreateUserRequest): Response<ApiResponse<UserDto>>
+
+    /**
+     * Update user
+     */
+    @PUT("api/users/{userId}")
+    suspend fun updateUser(
+        @Path("userId") userId: String,
+        @Body request: UpdateUserRequest
+    ): Response<ApiResponse<UserDto>>
+
+    /**
+     * Delete user
+     */
+    @DELETE("api/users/{userId}")
+    suspend fun deleteUser(@Path("userId") userId: String): Response<ApiResponse<Boolean>>
+
+    // ============== Lock Endpoints ==============
+
+    /**
+     * Get current lock status
+     */
+    @GET("api/lock/status")
+    suspend fun getLockStatus(): Response<ApiResponse<LockStatusResponse>>
+
+    /**
+     * Acquire operator lock
+     */
+    @POST("api/lock/acquire")
+    suspend fun acquireLock(@Body request: AcquireLockRequest): Response<AcquireLockResponse>
+
+    /**
+     * Release operator lock
+     */
+    @POST("api/lock/release")
+    suspend fun releaseLock(): Response<ReleaseLockResponse>
+
+    /**
+     * Extend lock duration
+     */
+    @POST("api/lock/extend")
+    suspend fun extendLock(@Body request: ExtendLockRequest): Response<ExtendLockResponse>
+
+    /**
+     * Force release lock (Admin only)
+     */
+    @POST("api/lock/force-release")
+    suspend fun forceReleaseLock(@Body request: ForceReleaseRequest): Response<ReleaseLockResponse>
 }

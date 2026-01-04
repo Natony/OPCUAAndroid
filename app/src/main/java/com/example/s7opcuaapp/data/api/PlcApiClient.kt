@@ -279,4 +279,167 @@ class PlcApiClient(
         signalRClient.cleanup()
         scope.cancel()
     }
+
+    // ============== Auth Methods ==============
+
+    /**
+     * Login with username and password
+     */
+    suspend fun login(username: String, password: String): LoginResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.login(LoginRequest(username, password))
+            if (response.isSuccessful) {
+                response.body()
+            } else {
+                Log.e(TAG, "Login failed: ${response.code()}")
+                LoginResponse(
+                    success = false,
+                    accessToken = null,
+                    refreshToken = null,
+                    expiresAt = null,
+                    user = null,
+                    error = "Login failed: ${response.code()}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Login error", e)
+            LoginResponse(
+                success = false,
+                accessToken = null,
+                refreshToken = null,
+                expiresAt = null,
+                user = null,
+                error = e.message
+            )
+        }
+    }
+
+    /**
+     * Logout
+     */
+    suspend fun logout(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.logout()
+            response.isSuccessful && response.body()?.success == true
+        } catch (e: Exception) {
+            Log.e(TAG, "Logout error", e)
+            false
+        }
+    }
+
+    /**
+     * Get current user info
+     */
+    suspend fun getCurrentUser(): UserDto? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getCurrentUser()
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Get current user error", e)
+            null
+        }
+    }
+
+    // ============== Lock Methods ==============
+
+    /**
+     * Get lock status
+     */
+    suspend fun getLockStatus(): LockStatusResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getLockStatus()
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Get lock status error", e)
+            null
+        }
+    }
+
+    /**
+     * Acquire operator lock
+     */
+    suspend fun acquireLock(durationMinutes: Int? = null): AcquireLockResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.acquireLock(AcquireLockRequest(durationMinutes))
+            if (response.isSuccessful) {
+                response.body()
+            } else {
+                AcquireLockResponse(
+                    success = false,
+                    expiresAt = null,
+                    remainingSeconds = null,
+                    error = "Failed to acquire lock: ${response.code()}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Acquire lock error", e)
+            AcquireLockResponse(
+                success = false,
+                expiresAt = null,
+                remainingSeconds = null,
+                error = e.message
+            )
+        }
+    }
+
+    /**
+     * Release operator lock
+     */
+    suspend fun releaseLock(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.releaseLock()
+            response.isSuccessful && response.body()?.success == true
+        } catch (e: Exception) {
+            Log.e(TAG, "Release lock error", e)
+            false
+        }
+    }
+
+    /**
+     * Extend lock duration
+     */
+    suspend fun extendLock(additionalMinutes: Int? = null): ExtendLockResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.extendLock(ExtendLockRequest(additionalMinutes))
+            if (response.isSuccessful) {
+                response.body()
+            } else {
+                ExtendLockResponse(
+                    success = false,
+                    newExpiresAt = null,
+                    remainingSeconds = null,
+                    error = "Failed to extend lock: ${response.code()}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Extend lock error", e)
+            ExtendLockResponse(
+                success = false,
+                newExpiresAt = null,
+                remainingSeconds = null,
+                error = e.message
+            )
+        }
+    }
+
+    /**
+     * Force release lock (Admin only)
+     */
+    suspend fun forceReleaseLock(reason: String?): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.forceReleaseLock(ForceReleaseRequest(reason))
+            response.isSuccessful && response.body()?.success == true
+        } catch (e: Exception) {
+            Log.e(TAG, "Force release lock error", e)
+            false
+        }
+    }
 }

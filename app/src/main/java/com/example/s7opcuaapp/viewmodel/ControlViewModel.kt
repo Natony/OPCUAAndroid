@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.s7opcuaapp.data.auth.AuthManager
+import com.example.s7opcuaapp.data.auth.LockManager
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.PlcData
 import com.example.s7opcuaapp.data.repository.ApiRepositoryImpl
@@ -31,6 +33,8 @@ class ControlViewModel @Inject constructor(
     private val buttonLockConfig: ButtonLockConfig,
     private val statusLockConfig: StatusLockConfig,
     private val connectionTimeoutManager: ConnectionTimeoutManager,
+    private val authManager: AuthManager,
+    private val lockManager: LockManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ControlUiState())
