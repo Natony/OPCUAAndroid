@@ -26,7 +26,8 @@ import javax.inject.Inject
 class ApiRepositoryImpl @Inject constructor(
     private var device: DeviceEntity,
     private val dataBuffer: PlcDataBuffer,
-    private val performanceMonitor: PerformanceMonitor
+    private val performanceMonitor: PerformanceMonitor,
+    private val sharedApiClient: PlcApiClient? = null
 ) : S7Repository {
 
     companion object {
@@ -43,8 +44,8 @@ class ApiRepositoryImpl @Inject constructor(
     // Repository scope
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // API Client
-    private var apiClient: PlcApiClient? = null
+    // API Client - use shared if provided, otherwise create own
+    private var apiClient: PlcApiClient? = sharedApiClient
 
     // Connection management
     private val connectionMutex = Mutex()
@@ -121,9 +122,11 @@ class ApiRepositoryImpl @Inject constructor(
                 if (!isConnected.get()) {
                     Log.d(TAG, "Attempting connection (failures: $consecutiveFailures)")
 
-                    // Create API client - use apiPort for REST API connection
-                    val serverUrl = "http://${device.ipAddress}:${device.apiPort}"
-                    apiClient = PlcApiClient(serverUrl)
+                    // Use shared client if provided, otherwise create new one
+                    if (apiClient == null) {
+                        val serverUrl = "http://${device.ipAddress}:${device.apiPort}"
+                        apiClient = PlcApiClient(serverUrl)
+                    }
 
                     // Set connection callbacks
                     apiClient?.setConnectionCallbacks(
@@ -417,9 +420,13 @@ class ApiRepositoryImpl @Inject constructor(
             connectionJob = null
             signalRJob = null
 
+            // Disconnect but don't cleanup shared client
             apiClient?.disconnect()
-            apiClient?.cleanup()
-            apiClient = null
+            if (sharedApiClient == null) {
+                // Only cleanup if we created our own client
+                apiClient?.cleanup()
+                apiClient = null
+            }
 
             dataBuffer.clear()
             loadingTracker.reset()

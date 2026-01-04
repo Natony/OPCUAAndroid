@@ -1,5 +1,6 @@
 package com.example.s7opcuaapp.di
 
+import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.buffer.PlcDataBuffer
 import com.example.s7opcuaapp.data.local.AppDatabase
 import com.example.s7opcuaapp.data.local.PrefsManager
@@ -47,6 +48,22 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun providePlcApiClient(prefsManager: PrefsManager): PlcApiClient {
+        val device = prefsManager.getCurrentDevice() ?: DeviceEntity(
+            id = "default",
+            name = "Default Device",
+            ipAddress = "192.168.1.100",
+            port = 4840,
+            opcUsername = "",
+            opcPassword = "",
+            useOpcUa = true
+        )
+        val serverUrl = "http://${device.ipAddress}:${device.apiPort}"
+        return PlcApiClient(serverUrl)
+    }
+
+    @Provides
+    @Singleton
     fun provideUserRepository(
         database: AppDatabase,
         prefsManager: PrefsManager
@@ -70,7 +87,8 @@ object RepositoryModule {
     fun provideS7Repository(
         prefsManager: PrefsManager,
         dataBuffer: PlcDataBuffer,
-        performanceMonitor: PerformanceMonitor
+        performanceMonitor: PerformanceMonitor,
+        plcApiClient: PlcApiClient
     ): S7Repository {
         val device = prefsManager.getCurrentDevice() ?: DeviceEntity(
             id = "default",
@@ -86,7 +104,8 @@ object RepositoryModule {
         return ApiRepositoryImpl(
             device = device,
             dataBuffer = dataBuffer,
-            performanceMonitor = performanceMonitor
+            performanceMonitor = performanceMonitor,
+            sharedApiClient = plcApiClient
         )
     }
 }
