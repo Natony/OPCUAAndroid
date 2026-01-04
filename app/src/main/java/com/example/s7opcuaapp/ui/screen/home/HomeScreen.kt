@@ -23,8 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.s7opcuaapp.R
-import com.example.s7opcuaapp.data.model.UserRole
-import com.example.s7opcuaapp.util.SessionManager
+import com.example.s7opcuaapp.data.api.UserRole
 import com.example.s7opcuaapp.viewmodel.HomeViewModel
 
 @Composable

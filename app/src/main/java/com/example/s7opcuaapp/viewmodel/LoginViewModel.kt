@@ -6,19 +6,20 @@ import androidx.lifecycle.viewModelScope
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
 import com.example.s7opcuaapp.data.auth.LockManager
-import com.example.s7opcuaapp.data.repository.UserRepository
 import com.example.s7opcuaapp.ui.screen.login.LoginUiState
-import com.example.s7opcuaapp.util.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel for login screen - uses API authentication only
+ * Local user management has been removed in favor of server-side authentication
+ */
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val userRepository: UserRepository,
-    private val sessionManager: SessionManager,
+    private val plcApiClient: PlcApiClient,
     private val authManager: AuthManager,
     private val lockManager: LockManager
 ) : ViewModel() {
@@ -32,24 +33,25 @@ class LoginViewModel @Inject constructor(
 
     // Expose auth state for UI
     val authState = authManager.authState
-    val apiUser = authManager.currentUser
+    val currentUser = authManager.currentUser
     val lockState = lockManager.lockState
     val lockStatus = lockManager.lockStatus
     val remainingLockTime = lockManager.remainingSeconds
 
-    // API client for server auth
-    private var apiClient: PlcApiClient? = null
+    init {
+        // Setup lock manager callbacks
+        setupLockManagerCallbacks()
+    }
 
     /**
-     * Set API client for server authentication
+     * Setup LockManager callbacks for auto-refresh and auto-extend
      */
-    fun setApiClient(client: PlcApiClient) {
-        apiClient = client
+    private fun setupLockManagerCallbacks() {
         lockManager.setCallbacks(
             refreshStatus = {
                 viewModelScope.launch {
                     try {
-                        val status = client.getLockStatus()
+                        val status = plcApiClient.getLockStatus()
                         lockManager.updateLockStatus(status)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error refreshing lock status", e)
@@ -59,7 +61,7 @@ class LoginViewModel @Inject constructor(
             autoExtend = {
                 viewModelScope.launch {
                     try {
-                        val result = client.extendLock()
+                        val result = plcApiClient.extendLock()
                         if (result?.success == true) {
                             lockManager.updateFromExtendResponse(result)
                         }
@@ -88,6 +90,9 @@ class LoginViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Login using API authentication
+     */
     fun onLoginClicked(onSuccess: () -> Unit) {
         val current = _uiState.value
         val username = current.username.trim()
@@ -103,82 +108,66 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // Try API login first if client is available
-                val apiLoginSuccess = apiClient?.let { client ->
-                    val response = client.login(username, password)
-                    if (response?.success == true) {
-                        authManager.saveLoginResponse(response)
-                        Log.d(TAG, "✅ API login successful")
-                        // Refresh lock status after login
-                        refreshLockStatus()
-                        true
-                    } else {
-                        Log.w(TAG, "API login failed: ${response?.error}")
-                        false
-                    }
-                } ?: false
+                val response = plcApiClient.login(username, password)
 
-                // Also do local authentication for session management
-                userRepository.authenticate(username, password)
-                    .fold(
-                        onSuccess = { user ->
-                            Log.d(TAG, "✅ Local auth successful: ${user.username}")
-                            val sessionId = sessionManager.login(user)
-                            Log.d(TAG, "✅ Session created: $sessionId")
+                if (response?.success == true) {
+                    // Save login response to AuthManager
+                    authManager.saveLoginResponse(response)
+                    Log.d(TAG, "✅ API login successful: ${response.user?.username}")
 
-                            _uiState.value = _uiState.value.copy(isLoading = false)
-                            onSuccess()
-                        },
-                        onFailure = { exception ->
-                            // If API login succeeded but local failed, still proceed
-                            if (apiLoginSuccess) {
-                                Log.w(TAG, "Local auth failed but API succeeded, proceeding")
-                                _uiState.value = _uiState.value.copy(isLoading = false)
-                                onSuccess()
-                            } else {
-                                Log.e(TAG, "❌ Auth failed: ${exception.message}")
-                                _uiState.value = _uiState.value.copy(
-                                    isLoading = false,
-                                    errorMessage = exception.message ?: "Đăng nhập thất bại"
-                                )
-                            }
-                        }
+                    // Refresh lock status after login
+                    refreshLockStatus()
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        password = "" // Clear password for security
                     )
+                    onSuccess()
+                } else {
+                    Log.e(TAG, "❌ Login failed: ${response?.error}")
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = response?.error ?: "Đăng nhập thất bại"
+                    )
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "💥 Login error", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Lỗi hệ thống: ${e.message}"
+                    errorMessage = "Lỗi kết nối: ${e.message}"
                 )
             }
         }
     }
 
     /**
-     * Logout from both API and local session
+     * Logout from API
      */
     fun logout() {
         viewModelScope.launch {
             try {
                 // Release lock if held
                 if (lockManager.hasLock()) {
-                    apiClient?.releaseLock()
+                    plcApiClient.releaseLock()
                 }
 
                 // Logout from API
-                apiClient?.logout()
+                plcApiClient.logout()
+
+                // Clear local auth state
                 authManager.clearAuth()
                 lockManager.clearLockState()
 
-                // Clear local session
-                sessionManager.logout()
+                // Reset UI state
+                _uiState.value = LoginUiState()
 
                 Log.d(TAG, "✅ Logout successful")
             } catch (e: Exception) {
                 Log.e(TAG, "Logout error", e)
-                // Still clear local state
+                // Still clear local state even if API call fails
                 authManager.clearAuth()
                 lockManager.clearLockState()
+                _uiState.value = LoginUiState()
             }
         }
     }
@@ -192,16 +181,16 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             lockManager.setAcquiring()
             try {
-                val response = apiClient?.acquireLock(durationMinutes)
+                val response = plcApiClient.acquireLock(durationMinutes)
                 if (response?.success == true) {
-                    refreshLockStatus()
+                    lockManager.updateFromAcquireResponse(response)
                     Log.d(TAG, "✅ Lock acquired")
                 } else {
-                    lockManager.setError(response?.error ?: "Failed to acquire lock")
+                    lockManager.setError(response?.error ?: "Không thể nhận quyền điều khiển")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Acquire lock error", e)
-                lockManager.setError(e.message ?: "Error")
+                lockManager.setError(e.message ?: "Lỗi")
             }
         }
     }
@@ -213,16 +202,16 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             lockManager.setReleasing()
             try {
-                val success = apiClient?.releaseLock() ?: false
+                val success = plcApiClient.releaseLock()
                 if (success) {
-                    refreshLockStatus()
+                    lockManager.updateFromReleaseResponse()
                     Log.d(TAG, "✅ Lock released")
                 } else {
-                    lockManager.setError("Failed to release lock")
+                    lockManager.setError("Không thể nhả quyền điều khiển")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Release lock error", e)
-                lockManager.setError(e.message ?: "Error")
+                lockManager.setError(e.message ?: "Lỗi")
             }
         }
     }
@@ -232,13 +221,13 @@ class LoginViewModel @Inject constructor(
      */
     fun forceReleaseLock(reason: String? = null) {
         if (!authManager.isAdmin()) {
-            lockManager.setError("Admin only")
+            lockManager.setError("Chỉ Admin mới có quyền này")
             return
         }
 
         viewModelScope.launch {
             try {
-                val success = apiClient?.forceReleaseLock(reason) ?: false
+                val success = plcApiClient.forceReleaseLock(reason)
                 if (success) {
                     refreshLockStatus()
                     Log.d(TAG, "✅ Force release successful")
@@ -255,7 +244,7 @@ class LoginViewModel @Inject constructor(
     fun refreshLockStatus() {
         viewModelScope.launch {
             try {
-                val status = apiClient?.getLockStatus()
+                val status = plcApiClient.getLockStatus()
                 lockManager.updateLockStatus(status)
             } catch (e: Exception) {
                 Log.e(TAG, "Refresh lock status error", e)
@@ -277,4 +266,14 @@ class LoginViewModel @Inject constructor(
      * Get formatted lock time remaining
      */
     fun getFormattedLockTime(): String = lockManager.formatRemainingTime()
+
+    /**
+     * Check if authenticated
+     */
+    fun isAuthenticated(): Boolean = authManager.isAuthenticated()
+
+    /**
+     * Check if admin
+     */
+    fun isAdmin(): Boolean = authManager.isAdmin()
 }

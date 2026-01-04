@@ -1,20 +1,23 @@
 package com.example.s7opcuaapp.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.example.s7opcuaapp.data.model.User
-import com.example.s7opcuaapp.util.SessionManager
+import com.example.s7opcuaapp.data.api.UserDto
+import com.example.s7opcuaapp.data.api.UserRole
+import com.example.s7opcuaapp.data.auth.AuthManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    val sessionManager: SessionManager
+    private val authManager: AuthManager
 ) : ViewModel() {
 
-    val currentUser: StateFlow<User?> = sessionManager.currentUser
+    val currentUser: StateFlow<UserDto?> = authManager.currentUser
 
-    fun isAdmin(): Boolean = sessionManager.hasRole(com.example.s7opcuaapp.data.model.UserRole.ADMIN)
+    fun isAdmin(): Boolean = authManager.isAdmin()
 
-    fun canModifyDevices(): Boolean = sessionManager.canModifyDevices()
+    fun canModifyDevices(): Boolean = authManager.canControl()
+
+    fun isAuthenticated(): Boolean = authManager.isAuthenticated()
 }
