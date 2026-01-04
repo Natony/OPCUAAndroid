@@ -4,8 +4,11 @@ import android.util.Log
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
+import com.example.s7opcuaapp.data.auth.AuthState
 import com.example.s7opcuaapp.data.auth.LockManager
+import com.example.s7opcuaapp.data.auth.LockState
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.PlcData
 import com.example.s7opcuaapp.data.repository.ApiRepositoryImpl
@@ -34,11 +37,21 @@ class ControlViewModel @Inject constructor(
     private val statusLockConfig: StatusLockConfig,
     private val connectionTimeoutManager: ConnectionTimeoutManager,
     private val authManager: AuthManager,
-    private val lockManager: LockManager
+    private val lockManager: LockManager,
+    private val plcApiClient: PlcApiClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ControlUiState())
     val uiState: StateFlow<ControlUiState> = _uiState.asStateFlow()
+
+    // Auth and Lock state exposed to UI
+    val authState: StateFlow<AuthState> = authManager.authState
+    val lockState: StateFlow<LockState> = lockManager.lockState
+    val lockRemainingSeconds: StateFlow<Int?> = lockManager.remainingSeconds
+
+    // Lock error message
+    private val _lockError = MutableSharedFlow<String>(replay = 0)
+    val lockError: SharedFlow<String> = _lockError.asSharedFlow()
 
     private val repoImpl = repository as ApiRepositoryImpl
     private val functionCodeNodeIndex = 14
@@ -111,6 +124,9 @@ class ControlViewModel @Inject constructor(
     }
 
     init {
+        // Setup LockManager callbacks
+        setupLockManagerCallbacks()
+
         // Monitor UI state changes
         viewModelScope.launch {
             snapshotFlow { uiState.value }
@@ -188,6 +204,169 @@ class ControlViewModel @Inject constructor(
                         }
                     }
                 }
+        }
+    }
+
+    /**
+     * Setup LockManager callbacks for auto-refresh and auto-extend
+     */
+    private fun setupLockManagerCallbacks() {
+        lockManager.setCallbacks(
+            refreshStatus = {
+                viewModelScope.launch {
+                    try {
+                        val response = plcApiClient.getLockStatus()
+                        if (response.isSuccessful) {
+                            response.body()?.let { lockManager.updateLockStatus(it) }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ControlVM", "Error refreshing lock status", e)
+                    }
+                }
+            },
+            autoExtend = {
+                viewModelScope.launch {
+                    try {
+                        val response = plcApiClient.extendLock(minutes = 30)
+                        if (response.isSuccessful) {
+                            response.body()?.let {
+                                if (it.success) {
+                                    lockManager.updateFromExtendResponse(it)
+                                    Log.d("ControlVM", "✅ Lock auto-extended")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ControlVM", "Error auto-extending lock", e)
+                    }
+                }
+            }
+        )
+    }
+
+    /**
+     * Check if user can control PLC (has lock or is ADMIN/OPERATOR)
+     * @return true if can control, false otherwise
+     */
+    private fun canControl(): Boolean {
+        // Check if authenticated
+        if (authManager.authState.value !is AuthState.Authenticated) {
+            return false
+        }
+
+        // Viewers cannot control at all
+        if (!authManager.canControl()) {
+            return false
+        }
+
+        // Check if we have the lock
+        return lockManager.hasLock()
+    }
+
+    /**
+     * Check lock before write operations
+     * @return true if OK to proceed, false if blocked
+     */
+    private suspend fun checkLockBeforeWrite(operationName: String): Boolean {
+        // Check auth first
+        if (authManager.authState.value !is AuthState.Authenticated) {
+            _lockError.emit("Chưa đăng nhập. Vui lòng đăng nhập để điều khiển.")
+            _uiState.update { it.copy(errorMessage = "Chưa đăng nhập") }
+            return false
+        }
+
+        // Check if user can control
+        if (!authManager.canControl()) {
+            _lockError.emit("Tài khoản không có quyền điều khiển.")
+            _uiState.update { it.copy(errorMessage = "Không có quyền điều khiển") }
+            return false
+        }
+
+        // Check lock
+        if (!lockManager.hasLock()) {
+            val lockState = lockManager.lockState.value
+            val message = when (lockState) {
+                is LockState.OtherLock -> "PLC đang được điều khiển bởi ${lockState.username}. Vui lòng chờ hoặc yêu cầu họ nhường quyền."
+                is LockState.NoLock -> "Bạn cần nhận quyền điều khiển trước khi thao tác."
+                else -> "Không có quyền điều khiển. Vui lòng nhận lock."
+            }
+            _lockError.emit(message)
+            _uiState.update { it.copy(errorMessage = message) }
+            Log.w("ControlVM", "❌ $operationName blocked - no lock: $lockState")
+            return false
+        }
+
+        return true
+    }
+
+    /**
+     * Acquire operator lock
+     */
+    fun acquireLock() {
+        viewModelScope.launch {
+            lockManager.startAcquiring()
+            try {
+                val response = plcApiClient.acquireLock(durationMinutes = 30)
+                if (response.isSuccessful) {
+                    response.body()?.let { result ->
+                        if (result.success) {
+                            lockManager.updateFromAcquireResponse(result)
+                            Log.d("ControlVM", "✅ Lock acquired")
+                        } else {
+                            lockManager.setError(result.error ?: "Không thể nhận lock")
+                            _lockError.emit(result.error ?: "Không thể nhận lock")
+                        }
+                    }
+                } else {
+                    lockManager.setError("Server error: ${response.code()}")
+                    _lockError.emit("Lỗi server: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("ControlVM", "Error acquiring lock", e)
+                lockManager.setError(e.message ?: "Lỗi không xác định")
+                _lockError.emit("Lỗi: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Release operator lock
+     */
+    fun releaseLock() {
+        viewModelScope.launch {
+            lockManager.startReleasing()
+            try {
+                val response = plcApiClient.releaseLock()
+                if (response.isSuccessful) {
+                    response.body()?.let { result ->
+                        if (result.success) {
+                            lockManager.updateFromReleaseResponse()
+                            Log.d("ControlVM", "✅ Lock released")
+                        } else {
+                            lockManager.setError(result.error ?: "Không thể nhả lock")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ControlVM", "Error releasing lock", e)
+                lockManager.setError(e.message ?: "Lỗi không xác định")
+            }
+        }
+    }
+
+    /**
+     * Refresh lock status from server
+     */
+    fun refreshLockStatus() {
+        viewModelScope.launch {
+            try {
+                val response = plcApiClient.getLockStatus()
+                if (response.isSuccessful) {
+                    response.body()?.let { lockManager.updateLockStatus(it) }
+                }
+            } catch (e: Exception) {
+                Log.e("ControlVM", "Error refreshing lock status", e)
+            }
         }
     }
 
@@ -745,6 +924,11 @@ class ControlViewModel @Inject constructor(
         actionName: String,
         action: suspend () -> Unit
     ): Boolean {
+        // Check operator lock first (before acquiring global lock)
+        if (!checkLockBeforeWrite(actionName)) {
+            return false
+        }
+
         // Try to acquire global lock
         if (!globalProcessingLock.tryLock()) {
             Log.d("ControlVM", "❌ Cannot $actionName button $buttonIndex - another operation in progress")
@@ -834,6 +1018,11 @@ class ControlViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            // Check operator lock first
+            if (!checkLockBeforeWrite("toggle boolean $index")) {
+                return@launch
+            }
+
             globalProcessingMutex.withLock {
                 try {
                     // Update UI to show processing
@@ -915,6 +1104,11 @@ class ControlViewModel @Inject constructor(
             _uiState.update {
                 it.copy(errorMessage = "Controls disabled in offline mode")
             }
+            return false
+        }
+
+        // Check operator lock before write
+        if (!checkLockBeforeWrite("press button $index")) {
             return false
         }
 

@@ -44,6 +44,8 @@ class LockManager @Inject constructor() {
     // Callback for API calls (set by repository)
     private var onRefreshLockStatus: (suspend () -> LockStatusResponse?)? = null
     private var onAutoExtendLock: (suspend () -> Boolean)? = null
+    private var refreshStatusCallback: (() -> Unit)? = null
+    private var autoExtendCallback: (() -> Unit)? = null
 
     /**
      * Lock states
@@ -59,9 +61,20 @@ class LockManager @Inject constructor() {
     }
 
     /**
-     * Set callbacks for API operations
+     * Set callbacks for API operations (simple version)
      */
     fun setCallbacks(
+        refreshStatus: () -> Unit,
+        autoExtend: () -> Unit
+    ) {
+        refreshStatusCallback = refreshStatus
+        autoExtendCallback = autoExtend
+    }
+
+    /**
+     * Set callbacks for API operations (coroutine version)
+     */
+    fun setCallbacksAsync(
         refreshStatus: suspend () -> LockStatusResponse?,
         autoExtend: suspend () -> Boolean
     ) {
@@ -105,6 +118,11 @@ class LockManager @Inject constructor() {
     }
 
     /**
+     * Alias for setAcquiring
+     */
+    fun startAcquiring() = setAcquiring()
+
+    /**
      * Set releasing state
      */
     fun setReleasing() {
@@ -112,10 +130,50 @@ class LockManager @Inject constructor() {
     }
 
     /**
+     * Alias for setReleasing
+     */
+    fun startReleasing() = setReleasing()
+
+    /**
      * Set error state
      */
     fun setError(message: String) {
         _lockState.value = LockState.Error(message)
+    }
+
+    /**
+     * Update from acquire lock response
+     */
+    fun updateFromAcquireResponse(response: AcquireLockResponse) {
+        if (response.success) {
+            _remainingSeconds.value = response.expiresInSeconds
+            _lockState.value = LockState.MyLock
+            startAutoExtendMonitoring()
+            Log.d(TAG, "Lock acquired, expires in ${response.expiresInSeconds}s")
+        } else {
+            _lockState.value = LockState.Error(response.error ?: "Failed to acquire lock")
+        }
+    }
+
+    /**
+     * Update from extend lock response
+     */
+    fun updateFromExtendResponse(response: ExtendLockResponse) {
+        if (response.success) {
+            _remainingSeconds.value = response.remainingSeconds
+            Log.d(TAG, "Lock extended, ${response.remainingSeconds}s remaining")
+        }
+    }
+
+    /**
+     * Update from release lock response
+     */
+    fun updateFromReleaseResponse() {
+        stopAutoExtendMonitoring()
+        _lockState.value = LockState.NoLock
+        _remainingSeconds.value = null
+        _lockStatus.value = null
+        Log.d(TAG, "Lock released")
     }
 
     /**
@@ -144,27 +202,36 @@ class LockManager @Inject constructor() {
                 delay(LOCK_CHECK_INTERVAL_MS)
 
                 try {
-                    // Refresh status
-                    val status = onRefreshLockStatus?.invoke()
-                    if (status != null) {
-                        _lockStatus.value = status
-                        _remainingSeconds.value = status.remainingSeconds
+                    // Use simple callback if available
+                    if (refreshStatusCallback != null) {
+                        refreshStatusCallback?.invoke()
+                    } else {
+                        // Refresh status using coroutine callback
+                        val status = onRefreshLockStatus?.invoke()
+                        if (status != null) {
+                            _lockStatus.value = status
+                            _remainingSeconds.value = status.remainingSeconds
 
-                        // Check if we still have the lock
-                        if (!status.isMyLock) {
-                            Log.w(TAG, "Lock lost!")
-                            _lockState.value = if (status.isLocked) {
-                                LockState.OtherLock(status.lockedByUsername)
-                            } else {
-                                LockState.NoLock
+                            // Check if we still have the lock
+                            if (!status.isMyLock) {
+                                Log.w(TAG, "Lock lost!")
+                                _lockState.value = if (status.isLocked) {
+                                    LockState.OtherLock(status.lockedByUsername)
+                                } else {
+                                    LockState.NoLock
+                                }
+                                break
                             }
-                            break
                         }
+                    }
 
-                        // Auto-extend if near expiry
-                        val remaining = status.remainingSeconds ?: 0
-                        if (remaining in 1..AUTO_EXTEND_THRESHOLD_SECONDS) {
-                            Log.d(TAG, "Auto-extending lock (${remaining}s remaining)")
+                    // Auto-extend if near expiry
+                    val remaining = _remainingSeconds.value ?: 0
+                    if (remaining in 1..AUTO_EXTEND_THRESHOLD_SECONDS) {
+                        Log.d(TAG, "Auto-extending lock (${remaining}s remaining)")
+                        if (autoExtendCallback != null) {
+                            autoExtendCallback?.invoke()
+                        } else {
                             val extended = onAutoExtendLock?.invoke() ?: false
                             if (!extended) {
                                 Log.w(TAG, "Failed to auto-extend lock")
