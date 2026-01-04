@@ -64,10 +64,27 @@ class AuthViewModel @Inject constructor(
 
         // Setup lock manager callbacks
         lockManager.setCallbacks(
-            refreshStatus = { client.getLockStatus() },
+            refreshStatus = {
+                viewModelScope.launch {
+                    try {
+                        val status = client.getLockStatus()
+                        lockManager.updateLockStatus(status)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error refreshing lock status", e)
+                    }
+                }
+            },
             autoExtend = {
-                val result = client.extendLock()
-                result?.success == true
+                viewModelScope.launch {
+                    try {
+                        val result = client.extendLock()
+                        if (result?.success == true) {
+                            lockManager.updateFromExtendResponse(result)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error extending lock", e)
+                    }
+                }
             }
         )
     }

@@ -146,10 +146,10 @@ class LockManager @Inject constructor() {
      */
     fun updateFromAcquireResponse(response: AcquireLockResponse) {
         if (response.success) {
-            _remainingSeconds.value = response.expiresInSeconds
+            _remainingSeconds.value = response.remainingSeconds
             _lockState.value = LockState.MyLock
             startAutoExtendMonitoring()
-            Log.d(TAG, "Lock acquired, expires in ${response.expiresInSeconds}s")
+            Log.d(TAG, "Lock acquired, expires in ${response.remainingSeconds}s")
         } else {
             _lockState.value = LockState.Error(response.error ?: "Failed to acquire lock")
         }

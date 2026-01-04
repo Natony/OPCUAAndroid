@@ -6,9 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
-import com.example.s7opcuaapp.data.auth.AuthState
 import com.example.s7opcuaapp.data.auth.LockManager
-import com.example.s7opcuaapp.data.auth.LockState
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.PlcData
 import com.example.s7opcuaapp.data.repository.ApiRepositoryImpl
@@ -45,8 +43,8 @@ class ControlViewModel @Inject constructor(
     val uiState: StateFlow<ControlUiState> = _uiState.asStateFlow()
 
     // Auth and Lock state exposed to UI
-    val authState: StateFlow<AuthState> = authManager.authState
-    val lockState: StateFlow<LockState> = lockManager.lockState
+    val authState: StateFlow<AuthManager.AuthState> = authManager.authState
+    val lockState: StateFlow<LockManager.LockState> = lockManager.lockState
     val lockRemainingSeconds: StateFlow<Int?> = lockManager.remainingSeconds
 
     // Lock error message
@@ -215,10 +213,8 @@ class ControlViewModel @Inject constructor(
             refreshStatus = {
                 viewModelScope.launch {
                     try {
-                        val response = plcApiClient.getLockStatus()
-                        if (response.isSuccessful) {
-                            response.body()?.let { lockManager.updateLockStatus(it) }
-                        }
+                        val lockStatus = plcApiClient.getLockStatus()
+                        lockStatus?.let { lockManager.updateLockStatus(it) }
                     } catch (e: Exception) {
                         Log.e("ControlVM", "Error refreshing lock status", e)
                     }
@@ -227,13 +223,11 @@ class ControlViewModel @Inject constructor(
             autoExtend = {
                 viewModelScope.launch {
                     try {
-                        val response = plcApiClient.extendLock(minutes = 30)
-                        if (response.isSuccessful) {
-                            response.body()?.let {
-                                if (it.success) {
-                                    lockManager.updateFromExtendResponse(it)
-                                    Log.d("ControlVM", "✅ Lock auto-extended")
-                                }
+                        val extendResponse = plcApiClient.extendLock(additionalMinutes = 30)
+                        extendResponse?.let {
+                            if (it.success) {
+                                lockManager.updateFromExtendResponse(it)
+                                Log.d("ControlVM", "✅ Lock auto-extended")
                             }
                         }
                     } catch (e: Exception) {
@@ -250,7 +244,7 @@ class ControlViewModel @Inject constructor(
      */
     private fun canControl(): Boolean {
         // Check if authenticated
-        if (authManager.authState.value !is AuthState.Authenticated) {
+        if (authManager.authState.value !is AuthManager.AuthState.Authenticated) {
             return false
         }
 
@@ -269,7 +263,7 @@ class ControlViewModel @Inject constructor(
      */
     private suspend fun checkLockBeforeWrite(operationName: String): Boolean {
         // Check auth first
-        if (authManager.authState.value !is AuthState.Authenticated) {
+        if (authManager.authState.value !is AuthManager.AuthState.Authenticated) {
             _lockError.emit("Chưa đăng nhập. Vui lòng đăng nhập để điều khiển.")
             _uiState.update { it.copy(errorMessage = "Chưa đăng nhập") }
             return false
@@ -284,15 +278,15 @@ class ControlViewModel @Inject constructor(
 
         // Check lock
         if (!lockManager.hasLock()) {
-            val lockState = lockManager.lockState.value
-            val message = when (lockState) {
-                is LockState.OtherLock -> "PLC đang được điều khiển bởi ${lockState.username}. Vui lòng chờ hoặc yêu cầu họ nhường quyền."
-                is LockState.NoLock -> "Bạn cần nhận quyền điều khiển trước khi thao tác."
+            val currentLockState = lockManager.lockState.value
+            val message = when (currentLockState) {
+                is LockManager.LockState.OtherLock -> "PLC đang được điều khiển bởi ${currentLockState.username}. Vui lòng chờ hoặc yêu cầu họ nhường quyền."
+                is LockManager.LockState.NoLock -> "Bạn cần nhận quyền điều khiển trước khi thao tác."
                 else -> "Không có quyền điều khiển. Vui lòng nhận lock."
             }
             _lockError.emit(message)
             _uiState.update { it.copy(errorMessage = message) }
-            Log.w("ControlVM", "❌ $operationName blocked - no lock: $lockState")
+            Log.w("ControlVM", "❌ $operationName blocked - no lock: $currentLockState")
             return false
         }
 
@@ -306,20 +300,18 @@ class ControlViewModel @Inject constructor(
         viewModelScope.launch {
             lockManager.startAcquiring()
             try {
-                val response = plcApiClient.acquireLock(durationMinutes = 30)
-                if (response.isSuccessful) {
-                    response.body()?.let { result ->
-                        if (result.success) {
-                            lockManager.updateFromAcquireResponse(result)
-                            Log.d("ControlVM", "✅ Lock acquired")
-                        } else {
-                            lockManager.setError(result.error ?: "Không thể nhận lock")
-                            _lockError.emit(result.error ?: "Không thể nhận lock")
-                        }
+                val result = plcApiClient.acquireLock(durationMinutes = 30)
+                if (result != null) {
+                    if (result.success) {
+                        lockManager.updateFromAcquireResponse(result)
+                        Log.d("ControlVM", "✅ Lock acquired")
+                    } else {
+                        lockManager.setError(result.error ?: "Không thể nhận lock")
+                        _lockError.emit(result.error ?: "Không thể nhận lock")
                     }
                 } else {
-                    lockManager.setError("Server error: ${response.code()}")
-                    _lockError.emit("Lỗi server: ${response.code()}")
+                    lockManager.setError("Lỗi kết nối server")
+                    _lockError.emit("Lỗi kết nối server")
                 }
             } catch (e: Exception) {
                 Log.e("ControlVM", "Error acquiring lock", e)
@@ -336,16 +328,12 @@ class ControlViewModel @Inject constructor(
         viewModelScope.launch {
             lockManager.startReleasing()
             try {
-                val response = plcApiClient.releaseLock()
-                if (response.isSuccessful) {
-                    response.body()?.let { result ->
-                        if (result.success) {
-                            lockManager.updateFromReleaseResponse()
-                            Log.d("ControlVM", "✅ Lock released")
-                        } else {
-                            lockManager.setError(result.error ?: "Không thể nhả lock")
-                        }
-                    }
+                val success = plcApiClient.releaseLock()
+                if (success) {
+                    lockManager.updateFromReleaseResponse()
+                    Log.d("ControlVM", "✅ Lock released")
+                } else {
+                    lockManager.setError("Không thể nhả lock")
                 }
             } catch (e: Exception) {
                 Log.e("ControlVM", "Error releasing lock", e)
@@ -360,10 +348,8 @@ class ControlViewModel @Inject constructor(
     fun refreshLockStatus() {
         viewModelScope.launch {
             try {
-                val response = plcApiClient.getLockStatus()
-                if (response.isSuccessful) {
-                    response.body()?.let { lockManager.updateLockStatus(it) }
-                }
+                val lockStatus = plcApiClient.getLockStatus()
+                lockStatus?.let { lockManager.updateLockStatus(it) }
             } catch (e: Exception) {
                 Log.e("ControlVM", "Error refreshing lock status", e)
             }

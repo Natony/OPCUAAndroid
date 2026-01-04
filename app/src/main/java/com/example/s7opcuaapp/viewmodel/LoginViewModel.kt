@@ -46,8 +46,28 @@ class LoginViewModel @Inject constructor(
     fun setApiClient(client: PlcApiClient) {
         apiClient = client
         lockManager.setCallbacks(
-            refreshStatus = { client.getLockStatus() },
-            autoExtend = { client.extendLock()?.success == true }
+            refreshStatus = {
+                viewModelScope.launch {
+                    try {
+                        val status = client.getLockStatus()
+                        lockManager.updateLockStatus(status)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error refreshing lock status", e)
+                    }
+                }
+            },
+            autoExtend = {
+                viewModelScope.launch {
+                    try {
+                        val result = client.extendLock()
+                        if (result?.success == true) {
+                            lockManager.updateFromExtendResponse(result)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error extending lock", e)
+                    }
+                }
+            }
         )
     }
 
