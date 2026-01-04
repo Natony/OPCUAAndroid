@@ -3,7 +3,6 @@ package com.example.s7opcuaapp.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.DeviceEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,10 +25,14 @@ data class ConfigUiState(
     val editingDevice: DeviceEntity? = null
 )
 
+/**
+ * ViewModel for device configuration
+ * Note: Device IP/port is for OPC UA server connection (handled by WPF server)
+ * API server config is managed separately via Login screen
+ */
 @HiltViewModel
 class ConfigViewModel @Inject constructor(
-    private val prefsManager: PrefsManager,
-    private val plcApiClient: PlcApiClient
+    private val prefsManager: PrefsManager
 ) : ViewModel() {
 
     companion object {
@@ -41,15 +44,6 @@ class ConfigViewModel @Inject constructor(
 
     init {
         loadDevices()
-    }
-
-    /**
-     * Update PlcApiClient URL when device changes
-     */
-    private fun updateApiClientUrl(device: DeviceEntity) {
-        val newUrl = "http://${device.ipAddress}:${device.apiPort}"
-        Log.d(TAG, "Updating API client URL to: $newUrl")
-        plcApiClient.updateServerUrl(newUrl)
     }
 
     private fun loadDevices() {
@@ -126,10 +120,9 @@ class ConfigViewModel @Inject constructor(
 
                 prefsManager.saveDeviceList(updatedList)
 
-                // If this was the current device, update it and refresh API client URL
+                // If this was the current device, update it
                 if (state.currentDevice?.id == updatedDevice.id) {
                     prefsManager.setCurrentDevice(updatedDevice)
-                    updateApiClientUrl(updatedDevice)
                 }
 
                 _uiState.value = state.copy(
@@ -224,8 +217,8 @@ class ConfigViewModel @Inject constructor(
     fun onSelectDevice(device: DeviceEntity, onSuccess: () -> Unit) {
         viewModelScope.launch {
             prefsManager.setCurrentDevice(device)
-            updateApiClientUrl(device)
             _uiState.value = _uiState.value.copy(currentDevice = device)
+            Log.d(TAG, "Selected device: ${device.name} (OPC UA: ${device.ipAddress}:${device.port})")
             onSuccess()
         }
     }
