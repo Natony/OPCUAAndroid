@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
 import com.example.s7opcuaapp.data.auth.LockManager
+import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.ui.screen.login.LoginUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,8 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor(
     private val plcApiClient: PlcApiClient,
     private val authManager: AuthManager,
-    private val lockManager: LockManager
+    private val lockManager: LockManager,
+    private val prefsManager: PrefsManager
 ) : ViewModel() {
 
     companion object {
@@ -39,8 +41,26 @@ class LoginViewModel @Inject constructor(
     val remainingLockTime = lockManager.remainingSeconds
 
     init {
+        // Load saved server config
+        loadServerConfig()
         // Setup lock manager callbacks
         setupLockManagerCallbacks()
+    }
+
+    /**
+     * Load saved API server config from preferences
+     */
+    private fun loadServerConfig() {
+        val savedIp = prefsManager.getApiServerIp()
+        val savedPort = prefsManager.getApiServerPort()
+        _uiState.value = _uiState.value.copy(
+            serverIp = savedIp,
+            serverPort = savedPort
+        )
+        // Update PlcApiClient with saved config
+        val serverUrl = "http://$savedIp:$savedPort"
+        plcApiClient.updateServerUrl(serverUrl)
+        Log.d(TAG, "Loaded server config: $serverUrl")
     }
 
     /**
@@ -88,6 +108,50 @@ class LoginViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             isPasswordVisible = !_uiState.value.isPasswordVisible
         )
+    }
+
+    // ============== Server Config ==============
+
+    fun onShowServerConfig() {
+        _uiState.value = _uiState.value.copy(showServerConfigDialog = true)
+    }
+
+    fun onDismissServerConfig() {
+        // Reset to saved values
+        _uiState.value = _uiState.value.copy(
+            showServerConfigDialog = false,
+            serverIp = prefsManager.getApiServerIp(),
+            serverPort = prefsManager.getApiServerPort()
+        )
+    }
+
+    fun onServerIpChanged(newIp: String) {
+        _uiState.value = _uiState.value.copy(serverIp = newIp)
+    }
+
+    fun onServerPortChanged(newPort: String) {
+        _uiState.value = _uiState.value.copy(serverPort = newPort)
+    }
+
+    fun onSaveServerConfig() {
+        val current = _uiState.value
+        val ip = current.serverIp.trim()
+        val port = current.serverPort.trim()
+
+        if (ip.isBlank() || port.isBlank()) {
+            return
+        }
+
+        // Save to preferences
+        prefsManager.saveApiServerConfig(ip, port)
+
+        // Update PlcApiClient
+        val serverUrl = "http://$ip:$port"
+        plcApiClient.updateServerUrl(serverUrl)
+        Log.d(TAG, "Server config saved: $serverUrl")
+
+        // Close dialog
+        _uiState.value = current.copy(showServerConfigDialog = false)
     }
 
     /**

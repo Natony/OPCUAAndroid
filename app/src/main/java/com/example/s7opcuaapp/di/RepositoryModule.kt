@@ -49,16 +49,8 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun providePlcApiClient(prefsManager: PrefsManager): PlcApiClient {
-        val device = prefsManager.getCurrentDevice() ?: DeviceEntity(
-            id = "default",
-            name = "Default Device",
-            ipAddress = "192.168.1.100",
-            port = 4840,
-            opcUsername = "",
-            opcPassword = "",
-            useOpcUa = true
-        )
-        val serverUrl = "http://${device.ipAddress}:${device.apiPort}"
+        // Use saved API server config
+        val serverUrl = prefsManager.getApiServerUrl()
         return PlcApiClient(serverUrl)
     }
 

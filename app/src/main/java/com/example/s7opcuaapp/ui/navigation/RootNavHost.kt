@@ -36,7 +36,13 @@ fun RootNavHost(navController: NavHostController) {
                             popUpTo("login") { inclusive = true }
                         }
                     }
-                }
+                },
+                // Server config callbacks
+                onShowServerConfig = { loginViewModel.onShowServerConfig() },
+                onServerIpChanged = { ip -> loginViewModel.onServerIpChanged(ip) },
+                onServerPortChanged = { port -> loginViewModel.onServerPortChanged(port) },
+                onSaveServerConfig = { loginViewModel.onSaveServerConfig() },
+                onDismissServerConfig = { loginViewModel.onDismissServerConfig() }
             )
         }
 

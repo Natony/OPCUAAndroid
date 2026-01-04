@@ -8,5 +8,9 @@ data class LoginUiState(
     val password: String = "",
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    // API Server config
+    val serverIp: String = "192.168.137.1",
+    val serverPort: String = "5000",
+    val showServerConfigDialog: Boolean = false
 )

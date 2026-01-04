@@ -24,6 +24,11 @@ class PrefsManager @Inject constructor(context: Context) {
         private const val KEY_CURRENT_DEVICE_ID = "current_device_id"
         private const val KEY_STATUS_LOCK_CONFIG = "status_lock_config"
         private const val KEY_STATUS_LOCK_OVERRIDE = "status_lock_override"
+        // API Server config
+        private const val KEY_API_SERVER_IP     = "api_server_ip"
+        private const val KEY_API_SERVER_PORT   = "api_server_port"
+        private const val DEFAULT_API_SERVER_IP = "192.168.137.1"
+        private const val DEFAULT_API_SERVER_PORT = "5000"
     }
 
     fun saveSession(sessionId: String, userId: String, username: String, role: String) {
@@ -116,5 +121,25 @@ class PrefsManager @Inject constructor(context: Context) {
 
     fun getStatusLockConfig(): String? {
         return prefs.getString(KEY_STATUS_LOCK_CONFIG, null)
+    }
+
+    // API Server config
+    fun saveApiServerConfig(ip: String, port: String) {
+        prefs.edit()
+            .putString(KEY_API_SERVER_IP, ip)
+            .putString(KEY_API_SERVER_PORT, port)
+            .apply()
+    }
+
+    fun getApiServerIp(): String {
+        return prefs.getString(KEY_API_SERVER_IP, DEFAULT_API_SERVER_IP) ?: DEFAULT_API_SERVER_IP
+    }
+
+    fun getApiServerPort(): String {
+        return prefs.getString(KEY_API_SERVER_PORT, DEFAULT_API_SERVER_PORT) ?: DEFAULT_API_SERVER_PORT
+    }
+
+    fun getApiServerUrl(): String {
+        return "http://${getApiServerIp()}:${getApiServerPort()}"
     }
 }
