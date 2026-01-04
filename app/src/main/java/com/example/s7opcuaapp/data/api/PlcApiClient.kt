@@ -11,9 +11,10 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Main API client that manages both REST API and SignalR connections
+ * Supports dynamic URL updates when device configuration changes
  */
 class PlcApiClient(
-    private val serverUrl: String
+    initialServerUrl: String
 ) {
     companion object {
         private const val TAG = "PlcApiClient"
@@ -24,7 +25,14 @@ class PlcApiClient(
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // HTTP client
+    // Current server URL - can be updated
+    @Volatile
+    private var serverUrl: String = initialServerUrl
+
+    // Lock for thread-safe URL updates
+    private val urlLock = Any()
+
+    // HTTP client - shared across URL changes
     private val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor { message ->
             Log.d(TAG, message)
@@ -40,24 +48,58 @@ class PlcApiClient(
             .build()
     }
 
-    // Retrofit instance
-    private val retrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl(serverUrl)
+    // Retrofit instance - recreated when URL changes
+    @Volatile
+    private var retrofit: Retrofit = createRetrofit(initialServerUrl)
+
+    // API service - recreated when URL changes
+    @Volatile
+    private var _apiService: PlcApiService = retrofit.create(PlcApiService::class.java)
+    val apiService: PlcApiService get() = _apiService
+
+    // SignalR client - recreated when URL changes
+    @Volatile
+    private var _signalRClient: PlcSignalRClient = PlcSignalRClient(initialServerUrl)
+    val signalRClient: PlcSignalRClient get() = _signalRClient
+
+    private fun createRetrofit(url: String): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(url)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
-    // API service
-    val apiService: PlcApiService by lazy {
-        retrofit.create(PlcApiService::class.java)
+    /**
+     * Update the server URL and recreate API clients
+     */
+    fun updateServerUrl(newServerUrl: String) {
+        if (newServerUrl == serverUrl) return
+
+        synchronized(urlLock) {
+            Log.d(TAG, "Updating server URL from $serverUrl to $newServerUrl")
+
+            // Cleanup old SignalR connection
+            _signalRClient.cleanup()
+
+            // Update URL and recreate clients
+            serverUrl = newServerUrl
+            retrofit = createRetrofit(newServerUrl)
+            _apiService = retrofit.create(PlcApiService::class.java)
+            _signalRClient = PlcSignalRClient(newServerUrl)
+
+            // Reset connection state
+            _isConnected.value = false
+            currentPlcId = null
+
+            Log.d(TAG, "Server URL updated successfully")
+        }
     }
 
-    // SignalR client
-    val signalRClient: PlcSignalRClient by lazy {
-        PlcSignalRClient(serverUrl)
-    }
+    /**
+     * Get current server URL
+     */
+    fun getServerUrl(): String = serverUrl
 
     // Connection state
     private val _isConnected = MutableStateFlow(false)

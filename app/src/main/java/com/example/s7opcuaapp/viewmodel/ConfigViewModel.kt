@@ -1,7 +1,9 @@
 package com.example.s7opcuaapp.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.DeviceEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,14 +28,28 @@ data class ConfigUiState(
 
 @HiltViewModel
 class ConfigViewModel @Inject constructor(
-    private val prefsManager: PrefsManager
+    private val prefsManager: PrefsManager,
+    private val plcApiClient: PlcApiClient
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "ConfigViewModel"
+    }
 
     private val _uiState = MutableStateFlow(ConfigUiState())
     val uiState: StateFlow<ConfigUiState> = _uiState
 
     init {
         loadDevices()
+    }
+
+    /**
+     * Update PlcApiClient URL when device changes
+     */
+    private fun updateApiClientUrl(device: DeviceEntity) {
+        val newUrl = "http://${device.ipAddress}:${device.apiPort}"
+        Log.d(TAG, "Updating API client URL to: $newUrl")
+        plcApiClient.updateServerUrl(newUrl)
     }
 
     private fun loadDevices() {
@@ -110,9 +126,10 @@ class ConfigViewModel @Inject constructor(
 
                 prefsManager.saveDeviceList(updatedList)
 
-                // If this was the current device, update it
+                // If this was the current device, update it and refresh API client URL
                 if (state.currentDevice?.id == updatedDevice.id) {
                     prefsManager.setCurrentDevice(updatedDevice)
+                    updateApiClientUrl(updatedDevice)
                 }
 
                 _uiState.value = state.copy(
@@ -207,6 +224,7 @@ class ConfigViewModel @Inject constructor(
     fun onSelectDevice(device: DeviceEntity, onSuccess: () -> Unit) {
         viewModelScope.launch {
             prefsManager.setCurrentDevice(device)
+            updateApiClientUrl(device)
             _uiState.value = _uiState.value.copy(currentDevice = device)
             onSuccess()
         }
