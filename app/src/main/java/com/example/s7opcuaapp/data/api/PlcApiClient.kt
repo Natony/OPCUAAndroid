@@ -3,7 +3,9 @@ package com.example.s7opcuaapp.data.api
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -32,7 +34,29 @@ class PlcApiClient(
     // Lock for thread-safe URL updates
     private val urlLock = Any()
 
-    // HTTP client - shared across URL changes
+    // Auth token for API requests
+    @Volatile
+    private var authToken: String? = null
+
+    /**
+     * Interceptor that adds Authorization header to all requests
+     */
+    private val authInterceptor = Interceptor { chain ->
+        val originalRequest = chain.request()
+        val token = authToken
+
+        val newRequest = if (token != null) {
+            originalRequest.newBuilder()
+                .header("Authorization", "Bearer $token")
+                .build()
+        } else {
+            originalRequest
+        }
+
+        chain.proceed(newRequest)
+    }
+
+    // HTTP client with auth interceptor
     private val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor { message ->
             Log.d(TAG, message)
@@ -44,6 +68,7 @@ class PlcApiClient(
             .connectTimeout(CONNECT_TIMEOUT, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT, TimeUnit.SECONDS)
+            .addInterceptor(authInterceptor)  // Add auth interceptor first
             .addInterceptor(logging)
             .build()
     }
@@ -69,6 +94,19 @@ class PlcApiClient(
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
+
+    /**
+     * Set the auth token for API requests
+     */
+    fun setAuthToken(token: String?) {
+        authToken = token
+        Log.d(TAG, if (token != null) "Auth token set" else "Auth token cleared")
+    }
+
+    /**
+     * Get the current auth token
+     */
+    fun getAuthToken(): String? = authToken
 
     /**
      * Update the server URL and recreate API clients

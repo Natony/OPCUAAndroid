@@ -43,6 +43,8 @@ class LoginViewModel @Inject constructor(
     init {
         // Load saved server config
         loadServerConfig()
+        // Restore auth token if previously logged in
+        restoreAuthToken()
         // Setup lock manager callbacks
         setupLockManagerCallbacks()
     }
@@ -61,6 +63,19 @@ class LoginViewModel @Inject constructor(
         val serverUrl = "http://$savedIp:$savedPort"
         plcApiClient.updateServerUrl(serverUrl)
         Log.d(TAG, "Loaded server config: $serverUrl")
+    }
+
+    /**
+     * Restore auth token from AuthManager if previously logged in
+     */
+    private fun restoreAuthToken() {
+        viewModelScope.launch {
+            val token = authManager.getAccessToken()
+            if (token != null && authManager.isAuthenticated()) {
+                plcApiClient.setAuthToken(token)
+                Log.d(TAG, "Restored auth token from previous session")
+            }
+        }
     }
 
     /**
@@ -174,7 +189,10 @@ class LoginViewModel @Inject constructor(
             try {
                 val response = plcApiClient.login(username, password)
 
-                if (response?.success == true) {
+                if (response?.success == true && response.accessToken != null) {
+                    // Set auth token for subsequent API requests
+                    plcApiClient.setAuthToken(response.accessToken)
+
                     // Save login response to AuthManager
                     authManager.saveLoginResponse(response)
                     Log.d(TAG, "✅ API login successful: ${response.user?.username}")
@@ -218,6 +236,9 @@ class LoginViewModel @Inject constructor(
                 // Logout from API
                 plcApiClient.logout()
 
+                // Clear auth token
+                plcApiClient.setAuthToken(null)
+
                 // Clear local auth state
                 authManager.clearAuth()
                 lockManager.clearLockState()
@@ -229,6 +250,7 @@ class LoginViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Logout error", e)
                 // Still clear local state even if API call fails
+                plcApiClient.setAuthToken(null)
                 authManager.clearAuth()
                 lockManager.clearLockState()
                 _uiState.value = LoginUiState()
