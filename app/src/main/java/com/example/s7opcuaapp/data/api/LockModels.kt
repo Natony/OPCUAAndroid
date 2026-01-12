@@ -3,16 +3,20 @@ package com.example.s7opcuaapp.data.api
 import com.google.gson.annotations.SerializedName
 
 /**
- * Lock status response
+ * Lock status response - matches actual API response structure
+ * API returns flat response (not wrapped in Data field)
  */
 data class LockStatusResponse(
-    @SerializedName("IsLocked") val isLocked: Boolean,
-    @SerializedName("LockedBy") val lockedBy: String?,
-    @SerializedName("LockedByUsername") val lockedByUsername: String?,
-    @SerializedName("LockedAt") val lockedAt: String?,
-    @SerializedName("ExpiresAt") val expiresAt: String?,
-    @SerializedName("RemainingSeconds") val remainingSeconds: Int?,
-    @SerializedName("IsMyLock") val isMyLock: Boolean
+    @SerializedName("Success") val success: Boolean = false,
+    @SerializedName("IsLocked") val isLocked: Boolean = false,
+    @SerializedName("LockId") val lockId: String? = null,
+    @SerializedName("UserId") val userId: String? = null,
+    @SerializedName("Username") val lockedByUsername: String? = null,
+    @SerializedName("DisplayName") val displayName: String? = null,
+    @SerializedName("AcquiredAt") val acquiredAt: String? = null,
+    @SerializedName("ExpiresAt") val expiresAt: String? = null,
+    @SerializedName("TimeRemainingSeconds") val remainingSeconds: Int? = null,
+    @SerializedName("IsCurrentUser") val isMyLock: Boolean = false
 )
 
 /**

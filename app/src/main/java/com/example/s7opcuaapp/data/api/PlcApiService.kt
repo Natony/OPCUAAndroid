@@ -156,9 +156,10 @@ interface PlcApiService {
 
     /**
      * Get current lock status
+     * Note: This API returns flat response (not wrapped in ApiResponse Data field)
      */
     @GET("api/lock/status")
-    suspend fun getLockStatus(): Response<ApiResponse<LockStatusResponse>>
+    suspend fun getLockStatus(): Response<LockStatusResponse>
 
     /**
      * Acquire operator lock

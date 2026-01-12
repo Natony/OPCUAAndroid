@@ -429,17 +429,18 @@ class PlcApiClient(
 
     /**
      * Get lock status
+     * Note: Lock API returns flat response (not wrapped in ApiResponse Data field)
      */
     suspend fun getLockStatus(): LockStatusResponse? = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getLockStatus()
-            Log.d(TAG, "Lock status response: code=${response.code()}, success=${response.body()?.success}, data=${response.body()?.data}")
-            if (response.isSuccessful && response.body()?.success == true) {
-                val lockStatus = response.body()?.data
-                Log.d(TAG, "Lock status: isLocked=${lockStatus?.isLocked}, isMyLock=${lockStatus?.isMyLock}, lockedBy=${lockStatus?.lockedByUsername}")
+            val lockStatus = response.body()
+            Log.d(TAG, "Lock status response: code=${response.code()}, success=${lockStatus?.success}")
+            if (response.isSuccessful && lockStatus?.success == true) {
+                Log.d(TAG, "Lock status: isLocked=${lockStatus.isLocked}, isMyLock=${lockStatus.isMyLock}, lockedBy=${lockStatus.lockedByUsername}")
                 lockStatus
             } else {
-                Log.w(TAG, "Lock status failed: code=${response.code()}, error=${response.body()?.error}")
+                Log.w(TAG, "Lock status failed: code=${response.code()}")
                 null
             }
         } catch (e: Exception) {
