@@ -348,8 +348,14 @@ class ControlViewModel @Inject constructor(
     fun refreshLockStatus() {
         viewModelScope.launch {
             try {
+                Log.d("ControlVM", "🔒 Fetching lock status from server...")
                 val lockStatus = plcApiClient.getLockStatus()
-                lockStatus?.let { lockManager.updateLockStatus(it) }
+                if (lockStatus != null) {
+                    lockManager.updateLockStatus(lockStatus)
+                    Log.d("ControlVM", "🔒 Lock status updated: isLocked=${lockStatus.isLocked}, isMyLock=${lockStatus.isMyLock}")
+                } else {
+                    Log.w("ControlVM", "🔒 Lock status is null - API may have failed or returned empty response")
+                }
             } catch (e: Exception) {
                 Log.e("ControlVM", "Error refreshing lock status", e)
             }
@@ -433,6 +439,9 @@ class ControlViewModel @Inject constructor(
                                         // Start monitoring and data observation
                                         startConnectionMonitoring()
                                         startOptimizedDataObservation()
+
+                                        // Fetch lock status from server
+                                        refreshLockStatus()
                                     }
                                     percent == -1 -> {
                                         throw Exception("Connection error from repository")
