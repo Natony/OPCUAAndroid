@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.microsoft.signalr.HubConnection
 import com.microsoft.signalr.HubConnectionBuilder
 import com.microsoft.signalr.HubConnectionState
+import io.reactivex.rxjava3.core.Single
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,18 @@ class PlcSignalRClient(
     private var hubConnection: HubConnection? = null
     private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    // Auth token provider
+    @Volatile
+    private var accessToken: String? = null
+
+    /**
+     * Set the access token for SignalR authentication
+     */
+    fun setAccessToken(token: String?) {
+        accessToken = token
+        Log.d(TAG, if (token != null) "Access token set for SignalR" else "Access token cleared")
+    }
 
     // Connection state
     private val _connectionState = MutableStateFlow(false)
@@ -54,8 +67,19 @@ class PlcSignalRClient(
             val hubUrl = "$baseUrl/hubs/plc"
             Log.d(TAG, "Connecting to SignalR hub: $hubUrl")
 
-            hubConnection = HubConnectionBuilder.create(hubUrl)
-                .build()
+            // Build connection with or without auth token
+            val builder = HubConnectionBuilder.create(hubUrl)
+
+            // Add access token if available
+            val token = accessToken
+            if (token != null) {
+                Log.d(TAG, "Adding JWT token to SignalR connection")
+                builder.withAccessTokenProvider(Single.just(token))
+            } else {
+                Log.w(TAG, "No access token available for SignalR - connection may fail")
+            }
+
+            hubConnection = builder.build()
 
             // Setup event handlers
             setupEventHandlers()

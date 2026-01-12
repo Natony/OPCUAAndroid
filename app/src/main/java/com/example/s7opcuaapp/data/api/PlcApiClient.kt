@@ -97,11 +97,13 @@ class PlcApiClient(
     }
 
     /**
-     * Set the auth token for API requests
+     * Set the auth token for API requests and SignalR
      */
     fun setAuthToken(token: String?) {
         authToken = token
-        Log.d(TAG, if (token != null) "Auth token set" else "Auth token cleared")
+        // Also set token for SignalR client
+        _signalRClient.setAccessToken(token)
+        Log.d(TAG, if (token != null) "Auth token set for API and SignalR" else "Auth token cleared")
     }
 
     /**
@@ -126,6 +128,9 @@ class PlcApiClient(
             retrofit = createRetrofit(newServerUrl)
             _apiService = retrofit.create(PlcApiService::class.java)
             _signalRClient = PlcSignalRClient(newServerUrl)
+
+            // Pass current auth token to new SignalR client
+            authToken?.let { _signalRClient.setAccessToken(it) }
 
             // Reset connection state
             _isConnected.value = false
