@@ -61,8 +61,7 @@ class PlcApiClient(
         val logging = HttpLoggingInterceptor { message ->
             Log.d(TAG, message)
         }.apply {
-            // Use BODY level to see actual JSON response for debugging
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.BASIC
         }
 
         OkHttpClient.Builder()
