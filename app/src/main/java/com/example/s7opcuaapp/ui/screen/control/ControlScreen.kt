@@ -372,8 +372,11 @@ private fun LockControlBar(
         color = when (lockState) {
             is LockManager.LockState.MyLock -> MaterialTheme.colorScheme.primaryContainer
             is LockManager.LockState.OtherLock -> MaterialTheme.colorScheme.errorContainer
-            is LockManager.LockState.NoLock -> MaterialTheme.colorScheme.surfaceVariant
-            is LockManager.LockState.Unknown -> MaterialTheme.colorScheme.surfaceVariant
+            is LockManager.LockState.Error -> MaterialTheme.colorScheme.errorContainer
+            is LockManager.LockState.NoLock,
+            is LockManager.LockState.Unknown,
+            is LockManager.LockState.Acquiring,
+            is LockManager.LockState.Releasing -> MaterialTheme.colorScheme.surfaceVariant
         },
         tonalElevation = 2.dp
     ) {
@@ -410,6 +413,9 @@ private fun LockControlBar(
                             is LockManager.LockState.OtherLock -> "Đang bị khóa bởi: ${lockState.username}"
                             is LockManager.LockState.NoLock -> "Chưa có quyền điều khiển"
                             is LockManager.LockState.Unknown -> "Đang kiểm tra..."
+                            is LockManager.LockState.Acquiring -> "Đang nhận quyền..."
+                            is LockManager.LockState.Releasing -> "Đang trả quyền..."
+                            is LockManager.LockState.Error -> "Lỗi: ${lockState.message}"
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
