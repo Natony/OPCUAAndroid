@@ -42,6 +42,8 @@ fun MainNavGraph(rootNavController: NavHostController) {
     val controlUiState by controlViewModel.uiState.collectAsStateWithLifecycle()
     val logoutViewModel: LogoutViewModel = hiltViewModel()
     val connectionState by controlViewModel.connectionState.collectAsStateWithLifecycle()
+    val lockState by controlViewModel.lockState.collectAsStateWithLifecycle()
+    val lockRemainingSeconds by controlViewModel.lockRemainingSeconds.collectAsStateWithLifecycle()
 
     // Get PrefsManager directly
     val context = LocalContext.current
@@ -153,6 +155,8 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 ControlScreen(
                     uiState = controlUiState,
                     connectionState = connectionState,
+                    lockState = lockState,
+                    lockRemainingSeconds = lockRemainingSeconds,
                     onNavigateToConfig = {
                         topNavController.navigate("config_btm")
                     },
@@ -195,6 +199,12 @@ fun MainNavGraph(rootNavController: NavHostController) {
                     },
                     onContinueOffline = {
                         controlViewModel.continueOffline()
+                    },
+                    onAcquireLock = {
+                        controlViewModel.acquireLock()
+                    },
+                    onReleaseLock = {
+                        controlViewModel.releaseLock()
                     }
                 )
             }

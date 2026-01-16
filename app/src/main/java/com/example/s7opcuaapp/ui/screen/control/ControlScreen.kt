@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.util.Log
+import com.example.s7opcuaapp.data.auth.LockManager
 import com.example.s7opcuaapp.data.model.PlcData
 import com.example.s7opcuaapp.ui.components.*
 import com.example.s7opcuaapp.viewmodel.ControlViewModel
@@ -23,6 +24,8 @@ import kotlinx.coroutines.launch
 fun ControlScreen(
     uiState: ControlUiState,
     connectionState: ControlViewModel.ConnectionState,
+    lockState: LockManager.LockState = LockManager.LockState.Unknown,
+    lockRemainingSeconds: Int? = null,
     onNavigateToConfig: () -> Unit,
     onRetryConnection: () -> Unit,
     onToggleBoolean: (Int, Boolean) -> Unit,
@@ -35,7 +38,9 @@ fun ControlScreen(
     onPressButton: (Int) -> Boolean,
     onReleaseButton: (Int) -> Boolean,
     onDismissTimeoutDialog: () -> Unit = {},
-    onContinueOffline: () -> Unit
+    onContinueOffline: () -> Unit,
+    onAcquireLock: () -> Unit = {},
+    onReleaseLock: () -> Unit = {}
 ) {
     val data = uiState.plcData
     var isAuto by remember { mutableStateOf(true) }
@@ -93,22 +98,32 @@ fun ControlScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Main content always visible
-        MainControlContent(
-            uiState = uiState,
-            isAuto = isAuto,
-            onToggleAutoMode = { isAuto = !isAuto },
-            onToggleBoolean = onToggleBoolean,
-            onOpenDialog = onOpenDialog,
-            onConfirmNumber = onConfirmNumber,
-            onDismissDialog = onDismissDialog,
-            onFunctionSelect = onFunctionSelect,
-            onTextChange = onTextChange,
-            onSendAll = onSendAll,
-            onPressButton = onPressButton,
-            onReleaseButton = onReleaseButton,
-            onRetryConnection = onRetryConnection
-        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Lock control bar at top
+            LockControlBar(
+                lockState = lockState,
+                remainingSeconds = lockRemainingSeconds,
+                onAcquireLock = onAcquireLock,
+                onReleaseLock = onReleaseLock
+            )
+
+            // Main content
+            MainControlContent(
+                uiState = uiState,
+                isAuto = isAuto,
+                onToggleAutoMode = { isAuto = !isAuto },
+                onToggleBoolean = onToggleBoolean,
+                onOpenDialog = onOpenDialog,
+                onConfirmNumber = onConfirmNumber,
+                onDismissDialog = onDismissDialog,
+                onFunctionSelect = onFunctionSelect,
+                onTextChange = onTextChange,
+                onSendAll = onSendAll,
+                onPressButton = onPressButton,
+                onReleaseButton = onReleaseButton,
+                onRetryConnection = onRetryConnection
+            )
+        }
 
         // Connection state overlays
         when (connectionState) {
@@ -340,4 +355,130 @@ fun ControlScreenOfflinePreview() {
         onDismissTimeoutDialog = {},
         onContinueOffline = {}
     )
+}
+
+/**
+ * Lock control bar showing lock status and acquire/release buttons
+ */
+@Composable
+private fun LockControlBar(
+    lockState: LockManager.LockState,
+    remainingSeconds: Int?,
+    onAcquireLock: () -> Unit,
+    onReleaseLock: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = when (lockState) {
+            is LockManager.LockState.MyLock -> MaterialTheme.colorScheme.primaryContainer
+            is LockManager.LockState.OtherLock -> MaterialTheme.colorScheme.errorContainer
+            is LockManager.LockState.NoLock -> MaterialTheme.colorScheme.surfaceVariant
+            is LockManager.LockState.Unknown -> MaterialTheme.colorScheme.surfaceVariant
+        },
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Lock status info
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = when (lockState) {
+                        is LockManager.LockState.MyLock -> Icons.Default.Lock
+                        is LockManager.LockState.OtherLock -> Icons.Default.Lock
+                        else -> Icons.Default.LockOpen
+                    },
+                    contentDescription = null,
+                    tint = when (lockState) {
+                        is LockManager.LockState.MyLock -> MaterialTheme.colorScheme.primary
+                        is LockManager.LockState.OtherLock -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+
+                Column {
+                    Text(
+                        text = when (lockState) {
+                            is LockManager.LockState.MyLock -> "Bạn đang giữ quyền điều khiển"
+                            is LockManager.LockState.OtherLock -> "Đang bị khóa bởi: ${lockState.username}"
+                            is LockManager.LockState.NoLock -> "Chưa có quyền điều khiển"
+                            is LockManager.LockState.Unknown -> "Đang kiểm tra..."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    if (lockState is LockManager.LockState.MyLock && remainingSeconds != null) {
+                        Text(
+                            text = "Còn lại: ${remainingSeconds / 60}:${String.format("%02d", remainingSeconds % 60)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Action button
+            when (lockState) {
+                is LockManager.LockState.NoLock -> {
+                    Button(
+                        onClick = onAcquireLock,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Nhận quyền")
+                    }
+                }
+
+                is LockManager.LockState.MyLock -> {
+                    OutlinedButton(
+                        onClick = onReleaseLock,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LockOpen,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Trả quyền")
+                    }
+                }
+
+                is LockManager.LockState.OtherLock -> {
+                    // Show disabled button or nothing
+                    TextButton(
+                        onClick = { },
+                        enabled = false
+                    ) {
+                        Text("Đang bị khóa")
+                    }
+                }
+
+                else -> {
+                    // Unknown state - show loading
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
+        }
+    }
 }
