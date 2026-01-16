@@ -109,8 +109,10 @@ class PlcSignalRClient(
             // Handle tag value changes
             on("TagValueChanged", { data: Any ->
                 try {
+                    Log.d(TAG, "📥 Received TagValueChanged: $data")
                     val json = gson.toJson(data)
                     val update = gson.fromJson(json, TagValueUpdate::class.java)
+                    Log.d(TAG, "📥 Parsed update: nodeId=${update.nodeId}, value=${update.value}")
                     scope.launch {
                         _tagValueUpdates.emit(update)
                     }
@@ -122,6 +124,7 @@ class PlcSignalRClient(
             // Handle connection state changes
             on("ConnectionStateChanged", { data: Any ->
                 try {
+                    Log.d(TAG, "📥 Received ConnectionStateChanged: $data")
                     val json = gson.toJson(data)
                     val status = gson.fromJson(json, ConnectionStatusDto::class.java)
                     scope.launch {
@@ -135,6 +138,7 @@ class PlcSignalRClient(
             // Handle all tag values response
             on("AllTagValues", { data: Any ->
                 try {
+                    Log.d(TAG, "📥 Received AllTagValues")
                     val json = gson.toJson(data)
                     val tags = gson.fromJson(json, Array<TagDto>::class.java).toList()
                     scope.launch {
