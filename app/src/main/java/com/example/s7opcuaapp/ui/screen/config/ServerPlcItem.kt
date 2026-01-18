@@ -54,12 +54,13 @@ fun ServerPlcItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Status indicator
+                // Status indicator based on connectionState
+                val isConnected = plc.connectionState.equals("Connected", ignoreCase = true)
                 Icon(
-                    imageVector = if (plc.isConnected == true) Icons.Default.CheckCircle else Icons.Default.Circle,
+                    imageVector = if (isConnected) Icons.Default.CheckCircle else Icons.Default.Circle,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = if (plc.isConnected == true) Color(0xFF4CAF50) else Color(0xFFBDBDBD)
+                    tint = if (isConnected) Color(0xFF4CAF50) else Color(0xFFBDBDBD)
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -80,14 +81,12 @@ fun ServerPlcItem(
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    plc.endpoint?.let { endpoint ->
-                        Text(
-                            text = endpoint,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = plc.endpointUrl,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
