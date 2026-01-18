@@ -102,10 +102,18 @@ class AuthManager @Inject constructor(
         val role = prefs.getString(KEY_ROLE, null)
 
         if (accessToken != null && userId != null && username != null && role != null) {
+            // Safely parse UserRole, default to VIEWER if invalid
+            val userRole = try {
+                UserRole.valueOf(role)
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Invalid role '$role', defaulting to VIEWER")
+                UserRole.VIEWER
+            }
+
             val user = UserDto(
                 id = userId,
                 username = username,
-                role = UserRole.valueOf(role),
+                role = userRole,
                 displayName = prefs.getString(KEY_DISPLAY_NAME, null),
                 isActive = true,
                 createdAt = null,
@@ -151,17 +159,32 @@ class AuthManager @Inject constructor(
     }
 
     /**
-     * Get current access token
+     * Get current access token (suspending version with mutex)
      */
     suspend fun getAccessToken(): String? = tokenMutex.withLock {
         prefs.getString(KEY_ACCESS_TOKEN, null)
     }
 
     /**
-     * Get refresh token
+     * Get current access token synchronously (for interceptors)
+     * Note: SharedPreferences getString is thread-safe for reads
+     */
+    fun getAccessTokenSync(): String? {
+        return prefs.getString(KEY_ACCESS_TOKEN, null)
+    }
+
+    /**
+     * Get refresh token (suspending version)
      */
     suspend fun getRefreshToken(): String? = tokenMutex.withLock {
         prefs.getString(KEY_REFRESH_TOKEN, null)
+    }
+
+    /**
+     * Get refresh token synchronously (for authenticator)
+     */
+    fun getRefreshTokenSync(): String? {
+        return prefs.getString(KEY_REFRESH_TOKEN, null)
     }
 
     /**
@@ -280,11 +303,8 @@ class AuthManager @Inject constructor(
      * Exit demo mode
      */
     suspend fun exitDemoMode() = tokenMutex.withLock {
-        prefs.edit().apply {
-            putBoolean(KEY_IS_DEMO_MODE, false)
-            clear()
-            apply()
-        }
+        // Clear all prefs first, then demo mode is implicitly false
+        prefs.edit().clear().apply()
         _authState.value = AuthState.NotAuthenticated
         _currentUser.value = null
         Log.d(TAG, "Exited demo mode")

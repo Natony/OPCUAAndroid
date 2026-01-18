@@ -1,7 +1,6 @@
 package com.example.s7opcuaapp.data.auth
 
 import android.util.Log
-import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
@@ -9,6 +8,7 @@ import javax.inject.Singleton
 
 /**
  * OkHttp Interceptor that adds Authorization header to requests
+ * Note: Uses synchronous token access to avoid blocking network thread
  */
 @Singleton
 class AuthInterceptor @Inject constructor(
@@ -36,10 +36,8 @@ class AuthInterceptor @Inject constructor(
             return chain.proceed(originalRequest)
         }
 
-        // Get access token
-        val accessToken = runBlocking {
-            authManager.getAccessToken()
-        }
+        // Get access token synchronously (SharedPreferences is thread-safe for reads)
+        val accessToken = authManager.getAccessTokenSync()
 
         // If no token, proceed without auth header
         if (accessToken.isNullOrBlank()) {
