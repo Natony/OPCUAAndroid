@@ -86,28 +86,37 @@ class LockManager @Inject constructor() {
      * Update lock status from API response
      */
     fun updateLockStatus(status: LockStatusResponse?) {
+        Log.d(TAG, "📥 LockStatusResponse: success=${status?.success}, isLocked=${status?.isLocked}, isMyLock=${status?.isMyLock}, lockedBy=${status?.lockedByUsername}, remainingSeconds=${status?.remainingSeconds}")
+
         _lockStatus.value = status
         _remainingSeconds.value = status?.remainingSeconds
 
         if (status == null) {
+            Log.w(TAG, "⚠️ Lock status is null, setting state to Unknown")
             _lockState.value = LockState.Unknown
             return
         }
 
+        val previousState = _lockState.value
         _lockState.value = when {
-            !status.isLocked -> LockState.NoLock
+            !status.isLocked -> {
+                Log.d(TAG, "🔓 Lock not held by anyone -> NoLock")
+                LockState.NoLock
+            }
             status.isMyLock -> {
+                Log.d(TAG, "🔒 Lock held by current user -> MyLock")
                 // Start auto-extend monitoring
                 startAutoExtendMonitoring()
                 LockState.MyLock
             }
             else -> {
+                Log.d(TAG, "🔒 Lock held by ${status.lockedByUsername} -> OtherLock")
                 stopAutoExtendMonitoring()
                 LockState.OtherLock(status.lockedByUsername)
             }
         }
 
-        Log.d(TAG, "Lock state updated: ${_lockState.value}")
+        Log.d(TAG, "🔄 Lock state changed: $previousState -> ${_lockState.value}")
     }
 
     /**
@@ -145,13 +154,15 @@ class LockManager @Inject constructor() {
      * Update from acquire lock response
      */
     fun updateFromAcquireResponse(response: AcquireLockResponse) {
+        Log.d(TAG, "📥 AcquireLockResponse: success=${response.success}, remainingSeconds=${response.remainingSeconds}, expiresAt=${response.expiresAt}, error=${response.error}")
         if (response.success) {
             _remainingSeconds.value = response.remainingSeconds
             _lockState.value = LockState.MyLock
             startAutoExtendMonitoring()
-            Log.d(TAG, "Lock acquired, expires in ${response.remainingSeconds}s")
+            Log.d(TAG, "✅ Lock acquired, expires in ${response.remainingSeconds}s")
         } else {
             _lockState.value = LockState.Error(response.error ?: "Failed to acquire lock")
+            Log.e(TAG, "❌ Failed to acquire lock: ${response.error}")
         }
     }
 

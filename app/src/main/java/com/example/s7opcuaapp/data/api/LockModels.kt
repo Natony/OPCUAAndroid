@@ -32,7 +32,7 @@ data class AcquireLockRequest(
 data class AcquireLockResponse(
     @SerializedName("Success") val success: Boolean,
     @SerializedName("ExpiresAt") val expiresAt: String?,
-    @SerializedName("RemainingSeconds") val remainingSeconds: Int?,
+    @SerializedName("TimeRemainingSeconds") val remainingSeconds: Int?,
     @SerializedName("Error") val error: String?
 )
 
@@ -57,7 +57,7 @@ data class ExtendLockRequest(
 data class ExtendLockResponse(
     @SerializedName("Success") val success: Boolean,
     @SerializedName("NewExpiresAt") val newExpiresAt: String?,
-    @SerializedName("RemainingSeconds") val remainingSeconds: Int?,
+    @SerializedName("TimeRemainingSeconds") val remainingSeconds: Int?,
     @SerializedName("Error") val error: String?
 )
 

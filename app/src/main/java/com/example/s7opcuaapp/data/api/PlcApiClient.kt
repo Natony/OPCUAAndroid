@@ -458,10 +458,16 @@ class PlcApiClient(
      */
     suspend fun acquireLock(durationMinutes: Int? = null): AcquireLockResponse? = withContext(Dispatchers.IO) {
         try {
+            Log.d(TAG, "📤 Requesting lock with durationMinutes=$durationMinutes")
             val response = apiService.acquireLock(AcquireLockRequest(durationMinutes))
+            Log.d(TAG, "📥 Acquire lock response: code=${response.code()}, body=${response.body()}")
             if (response.isSuccessful) {
-                response.body()
+                val body = response.body()
+                Log.d(TAG, "📥 Parsed AcquireLockResponse: success=${body?.success}, remainingSeconds=${body?.remainingSeconds}, expiresAt=${body?.expiresAt}, error=${body?.error}")
+                body
             } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "❌ Acquire lock failed: code=${response.code()}, error=$errorBody")
                 AcquireLockResponse(
                     success = false,
                     expiresAt = null,
