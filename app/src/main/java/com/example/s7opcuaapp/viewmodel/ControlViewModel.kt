@@ -127,10 +127,18 @@ class ControlViewModel @Inject constructor(
 
         // Load saved PLC ID and set on PlcApiClient
         val savedPlcId = prefsManager.getSelectedPlcId()
+        val savedPlcName = prefsManager.getSelectedPlcName()
+        Log.d("ControlVM", "═══════════════════════════════════════════════")
+        Log.d("ControlVM", "🚀 ControlViewModel initialized")
+        Log.d("ControlVM", "   Saved PLC ID: $savedPlcId")
+        Log.d("ControlVM", "   Saved PLC Name: $savedPlcName")
         if (savedPlcId != null) {
             plcApiClient.setCurrentPlcId(savedPlcId)
-            Log.d("ControlVM", "Loaded saved PLC ID: $savedPlcId")
+            Log.d("ControlVM", "   ✅ PLC ID set on PlcApiClient")
+        } else {
+            Log.w("ControlVM", "   ⚠️ No PLC ID saved - user needs to select a PLC")
         }
+        Log.d("ControlVM", "═══════════════════════════════════════════════")
 
         // Monitor UI state changes
         viewModelScope.launch {

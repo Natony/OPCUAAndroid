@@ -31,6 +31,7 @@ class PrefsManager @Inject constructor(context: Context) {
         private const val DEFAULT_API_SERVER_PORT = "5000"
         // Selected PLC from API server
         private const val KEY_SELECTED_PLC_ID   = "selected_plc_id"
+        private const val KEY_SELECTED_PLC_NAME = "selected_plc_name"
     }
 
     fun saveSession(sessionId: String, userId: String, username: String, role: String) {
@@ -145,10 +146,12 @@ class PrefsManager @Inject constructor(context: Context) {
         return "http://${getApiServerIp()}:${getApiServerPort()}"
     }
 
-    // Selected PLC ID from API server
-    fun saveSelectedPlcId(plcId: String) {
+    // Selected PLC from API server
+    fun saveSelectedPlc(plcId: String, plcName: String) {
+        android.util.Log.d("PrefsManager", "💾 Saving selected PLC: id=$plcId, name=$plcName")
         prefs.edit()
             .putString(KEY_SELECTED_PLC_ID, plcId)
+            .putString(KEY_SELECTED_PLC_NAME, plcName)
             .apply()
     }
 
@@ -156,9 +159,15 @@ class PrefsManager @Inject constructor(context: Context) {
         return prefs.getString(KEY_SELECTED_PLC_ID, null)
     }
 
-    fun clearSelectedPlcId() {
+    fun getSelectedPlcName(): String? {
+        return prefs.getString(KEY_SELECTED_PLC_NAME, null)
+    }
+
+    fun clearSelectedPlc() {
+        android.util.Log.d("PrefsManager", "🗑️ Clearing selected PLC")
         prefs.edit()
             .remove(KEY_SELECTED_PLC_ID)
+            .remove(KEY_SELECTED_PLC_NAME)
             .apply()
     }
 }

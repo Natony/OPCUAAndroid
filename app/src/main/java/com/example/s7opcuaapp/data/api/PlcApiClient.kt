@@ -172,7 +172,12 @@ class PlcApiClient(
      */
     suspend fun connect(plcId: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Connecting to server: $serverUrl with plcId: $plcId")
+            Log.d(TAG, "═══════════════════════════════════════════════")
+            Log.d(TAG, "🔌 CONNECTING TO PLC")
+            Log.d(TAG, "   Server URL: $serverUrl")
+            Log.d(TAG, "   Provided plcId param: $plcId")
+            Log.d(TAG, "   Stored currentPlcId: $currentPlcId")
+            Log.d(TAG, "═══════════════════════════════════════════════")
 
             // First check if server is reachable
             val statusResponse = apiService.getPlcStatus()
@@ -225,7 +230,11 @@ class PlcApiClient(
 
             _isConnected.value = true
             onConnectionRestored?.invoke()
-            Log.d(TAG, "Connected successfully with PLC ID: $currentPlcId")
+            Log.d(TAG, "═══════════════════════════════════════════════")
+            Log.d(TAG, "✅ CONNECTION SUCCESSFUL")
+            Log.d(TAG, "   Connected to PLC ID: $currentPlcId")
+            Log.d(TAG, "   SignalR: ${if (signalRConnected) "Connected" else "Polling mode"}")
+            Log.d(TAG, "═══════════════════════════════════════════════")
             true
 
         } catch (e: Exception) {

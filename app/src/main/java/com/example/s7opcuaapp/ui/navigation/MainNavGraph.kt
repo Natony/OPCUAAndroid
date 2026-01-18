@@ -50,6 +50,19 @@ fun MainNavGraph(rootNavController: NavHostController) {
     val prefsManager = remember { PrefsManager(context) }
     val currentDevice = remember { mutableStateOf(prefsManager.getCurrentDevice()) }
 
+    // Selected PLC name from server
+    var selectedPlcName by remember { mutableStateOf(prefsManager.getSelectedPlcName()) }
+    var selectedPlcId by remember { mutableStateOf(prefsManager.getSelectedPlcId()) }
+
+    // Log current PLC selection
+    LaunchedEffect(Unit) {
+        Log.d("MainNavGraph", "═══════════════════════════════════════════════")
+        Log.d("MainNavGraph", "🚀 MainNavGraph initialized")
+        Log.d("MainNavGraph", "   Selected PLC ID: $selectedPlcId")
+        Log.d("MainNavGraph", "   Selected PLC Name: $selectedPlcName")
+        Log.d("MainNavGraph", "═══════════════════════════════════════════════")
+    }
+
     // Add coroutine scope for proper async handling
     val coroutineScope = rememberCoroutineScope()
 
@@ -134,7 +147,7 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 navController = topNavController,
                 statusValue = controlUiState.plcData.ints.getOrNull(0) ?: 0,
                 batteryLevel = controlUiState.plcData.ints.getOrNull(1) ?: 100,
-                deviceName = currentDevice.value?.name ?: "No Device",
+                deviceName = selectedPlcName ?: "No PLC Selected",
                 connectionState = connectionState,
                 onLogout = {
                     logoutViewModel.logout {
@@ -242,7 +255,17 @@ fun MainNavGraph(rootNavController: NavHostController) {
                     onSelectServerPlc = { plc ->
                         configViewModel.onSelectServerPlc(plc) {
                             coroutineScope.launch {
-                                Log.d("MainNavGraph", "📱 PLC selected: ${plc.name}")
+                                Log.d("MainNavGraph", "═══════════════════════════════════════════════")
+                                Log.d("MainNavGraph", "📱 PLC SELECTED IN CONFIG:")
+                                Log.d("MainNavGraph", "   Name: ${plc.name}")
+                                Log.d("MainNavGraph", "   ID: ${plc.id}")
+                                Log.d("MainNavGraph", "   Endpoint: ${plc.endpointUrl}")
+                                Log.d("MainNavGraph", "═══════════════════════════════════════════════")
+
+                                // Update local state for TopNavigationBar
+                                selectedPlcName = plc.name
+                                selectedPlcId = plc.id
+                                Log.d("MainNavGraph", "✅ Updated selectedPlcName: $selectedPlcName")
 
                                 // Complete reset when changing PLC
                                 Log.d("MainNavGraph", "🛑 Stopping current connection...")
