@@ -54,36 +54,17 @@ fun RootNavHost(navController: NavHostController) {
             )
         }
 
-        // 2. ConfigSelect Screen (chọn device/PLC)
+        // 2. ConfigSelect Screen (chọn PLC từ server)
         composable("config_select") {
             val configViewModel: ConfigViewModel = hiltViewModel()
             val uiState by configViewModel.uiState.collectAsStateWithLifecycle()
 
             ConfigScreen(
                 uiState = uiState,
-                onNewDeviceNameChanged = { deviceName -> configViewModel.onNewDeviceNameChanged(deviceName) },
-                onNewDeviceIpChanged = { deviceIp -> configViewModel.onNewDeviceIpChanged(deviceIp) },
-                onNewDevicePortChanged = { devicePort -> configViewModel.onNewDevicePortChanged(devicePort) },
-                onNewDeviceApiPortChanged = { apiPort -> configViewModel.onNewDeviceApiPortChanged(apiPort) },
-                onNewDeviceUsernameChanged = { deviceUsername -> configViewModel.onNewDeviceUsernameChanged(deviceUsername) },
-                onNewDevicePasswordChanged = { devicePassword -> configViewModel.onNewDevicePasswordChanged(devicePassword) },
-                onAddDevice = { configViewModel.onAddDevice() },
-                onRemoveDevice = { device -> configViewModel.onRemoveDevice(device) },
-                onSelectDevice = { device ->
-                    configViewModel.onSelectDevice(device) {
-                        // After selecting device, go to main
-                        navController.navigate("main") {
-                            popUpTo("config_select") { inclusive = true }
-                        }
-                    }
-                },
-                onEditDevice = { device -> configViewModel.onEditDevice(device) },
-                onCancelEdit = { configViewModel.onCancelEdit() },
-                // Server PLC callbacks
                 onRefreshServerPlcs = { configViewModel.loadServerPlcs() },
                 onSelectServerPlc = { plc ->
                     configViewModel.onSelectServerPlc(plc) {
-                        // After selecting server PLC, go to main
+                        // After selecting PLC, go to main
                         navController.navigate("main") {
                             popUpTo("config_select") { inclusive = true }
                         }

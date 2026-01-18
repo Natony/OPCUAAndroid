@@ -1,13 +1,7 @@
 package com.example.s7opcuaapp.ui.screen.config
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -18,93 +12,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.s7opcuaapp.data.api.PlcDto
-import com.example.s7opcuaapp.data.model.DeviceEntity
 import com.example.s7opcuaapp.viewmodel.ConfigUiState
-import com.example.s7opcuaapp.viewmodel.ControlViewModel
 
 @Composable
 fun ConfigScreen(
     uiState: ConfigUiState,
-    connectionState: ControlViewModel.ConnectionState? = null,
-    onNewDeviceNameChanged: (String) -> Unit,
-    onNewDeviceIpChanged: (String) -> Unit,
-    onNewDevicePortChanged: (String) -> Unit,
-    onNewDeviceApiPortChanged: (String) -> Unit,
-    onNewDeviceUsernameChanged: (String) -> Unit,
-    onNewDevicePasswordChanged: (String) -> Unit,
-    onAddDevice: () -> Unit,
-    onRemoveDevice: (DeviceEntity) -> Unit,
-    onSelectDevice: (DeviceEntity) -> Unit,
-    onEditDevice: (DeviceEntity) -> Unit = {},
-    onCancelEdit: () -> Unit = {},
-    // Server PLC callbacks
     onRefreshServerPlcs: () -> Unit = {},
     onSelectServerPlc: (PlcDto) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
-        // Connection Status Card (if provided)
-        connectionState?.let { state ->
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = when (state) {
-                            is ControlViewModel.ConnectionState.Connected -> Color(0xFFE8F5E9)
-                            is ControlViewModel.ConnectionState.Connecting -> Color(0xFFFFF9C4)
-                            is ControlViewModel.ConnectionState.Failed -> Color(0xFFFFEBEE)
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        }
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = when (state) {
-                                is ControlViewModel.ConnectionState.Connected -> Icons.Default.CheckCircle
-                                is ControlViewModel.ConnectionState.Failed -> Icons.Default.Error
-                                else -> Icons.Default.Info
-                            },
-                            contentDescription = null,
-                            tint = when (state) {
-                                is ControlViewModel.ConnectionState.Connected -> Color(0xFF4CAF50)
-                                is ControlViewModel.ConnectionState.Failed -> Color(0xFFF44336)
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = when (state) {
-                                is ControlViewModel.ConnectionState.Connected -> "Connected to PLC"
-                                is ControlViewModel.ConnectionState.Connecting -> "Connecting..."
-                                is ControlViewModel.ConnectionState.Failed -> "Connection failed: ${state.error}"
-                                is ControlViewModel.ConnectionState.Timeout -> "Connection timeout"
-                                else -> "Not connected"
-                            },
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-        }
         // Header
         item {
             Text(
-                text = "Chọn PLC từ Server",
-                style = MaterialTheme.typography.headlineSmall,
+                text = "Chọn PLC",
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 4.dp)
+                modifier = Modifier.padding(bottom = 8.dp)
             )
         }
 
@@ -114,30 +43,49 @@ fun ConfigScreen(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "PLCs trên Server (${uiState.serverPlcs.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Column {
+                            Text(
+                                text = "PLCs trên Server",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "${uiState.serverPlcs.size} PLC${if (uiState.serverPlcs.size != 1) "s" else ""} available",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             if (uiState.selectedPlcId != null) {
                                 Surface(
                                     shape = MaterialTheme.shapes.small,
                                     color = MaterialTheme.colorScheme.primaryContainer
                                 ) {
-                                    Text(
-                                        text = "Đã chọn: ${uiState.serverPlcs.find { it.id == uiState.selectedPlcId }?.name ?: uiState.selectedPlcId}",
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = uiState.serverPlcs.find { it.id == uiState.selectedPlcId }?.name
+                                                ?: "Selected",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
@@ -148,7 +96,7 @@ fun ConfigScreen(
                             ) {
                                 if (uiState.isLoadingPlcs) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(24.dp),
                                         strokeWidth = 2.dp
                                     )
                                 } else {
@@ -161,16 +109,57 @@ fun ConfigScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    if (uiState.serverPlcs.isEmpty() && !uiState.isLoadingPlcs) {
-                        Text(
-                            text = "Không có PLC nào. Nhấn Refresh để tải lại.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    if (uiState.isLoadingPlcs) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator()
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Đang tải danh sách PLC...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else if (uiState.serverPlcs.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Không có PLC nào",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Nhấn Refresh để tải lại danh sách",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             uiState.serverPlcs.forEach { plc ->
                                 ServerPlcItem(
                                     plc = plc,
@@ -182,207 +171,64 @@ fun ConfigScreen(
                     }
 
                     uiState.errorMessage?.let { msg ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = msg,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-        }
-
-        // Divider
-        item {
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(
-                text = "Cấu hình Device local (Tùy chọn)",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-        }
-
-        // Add/Edit Device Form
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (uiState.isEditMode) "Edit Device" else "Add New Device",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-
-                        if (uiState.isEditMode) {
-                            IconButton(onClick = onCancelEdit) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.errorContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Cancel",
+                                    imageVector = Icons.Default.Error,
+                                    contentDescription = null,
                                     tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = msg,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Compact form fields
-                    OutlinedTextField(
-                        value = uiState.newDeviceName,
-                        onValueChange = onNewDeviceNameChanged,
-                        label = { Text("Device Name", fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
-                            value = uiState.newDeviceIp,
-                            onValueChange = onNewDeviceIpChanged,
-                            label = { Text("IP Address", fontSize = 12.sp) },
-                            modifier = Modifier.weight(2f),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = uiState.newDevicePort,
-                            onValueChange = onNewDevicePortChanged,
-                            label = { Text("OPC Port", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = uiState.newDeviceApiPort,
-                            onValueChange = onNewDeviceApiPortChanged,
-                            label = { Text("API Port", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
-                            value = uiState.newDeviceUsername,
-                            onValueChange = onNewDeviceUsernameChanged,
-                            label = { Text("Username (Optional)", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = uiState.newDevicePassword,
-                            onValueChange = onNewDevicePasswordChanged,
-                            label = { Text("Password (Optional)", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        if (uiState.isEditMode) {
-                            TextButton(onClick = onCancelEdit) {
-                                Text("Cancel")
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-
-                        Button(
-                            onClick = onAddDevice
-                        ) {
-                            Icon(
-                                imageVector = if (uiState.isEditMode) Icons.Default.Check else Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (uiState.isEditMode) "Update" else "Add Device")
-                        }
-                    }
-
-                    uiState.errorMessage?.let { msg ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = msg,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
                 }
             }
         }
 
-        // Device List Header
+        // Info card
         item {
-            Row(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Saved Devices (${uiState.deviceList.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
-
-                if (uiState.currentDevice != null) {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
                         Text(
-                            text = "Current: ${uiState.currentDevice.name}",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = "Chọn PLC để kết nối",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Sau khi chọn PLC, bạn sẽ được chuyển đến màn hình điều khiển",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            }
-        }
-
-        // Device List Content
-        if (uiState.deviceList.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Text(
-                        text = "No devices configured yet",
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else {
-            items(uiState.deviceList) { device ->
-                DeviceListItem(
-                    device = device,
-                    isSelected = (device.id == uiState.currentDevice?.id),
-                    onRemove = { onRemoveDevice(device) },
-                    onSelect = { onSelectDevice(device) },
-                    onEdit = { onEditDevice(device) }
-                )
             }
         }
     }
@@ -390,52 +236,57 @@ fun ConfigScreen(
 
 // ========== PREVIEW SECTION ==========
 
-@Preview(showBackground = true, widthDp = 1920, heightDp = 1200)
+@Preview(showBackground = true, widthDp = 400, heightDp = 800)
 @Composable
-fun ConfigScreenWithDevicesPreview() {
-    val sampleDevices = listOf(
-        DeviceEntity(
-            id = "1",
-            name = "PLC-01",
-            ipAddress = "192.168.1.100",
-            port = 4840,
-            opcUsername = "admin",
-            opcPassword = "password",
-            useOpcUa = true
+fun ConfigScreenPreview() {
+    val samplePlcs = listOf(
+        PlcDto(
+            id = "plc-1",
+            name = "PLC-Production-01",
+            endpointUrl = "opc.tcp://192.168.1.100:4840",
+            connectionState = "Connected",
+            tagCount = 46,
+            lastConnected = "2024-01-15T10:30:00Z"
         ),
-        DeviceEntity(
-            id = "2",
-            name = "PLC-02",
-            ipAddress = "192.168.1.101",
-            port = 4840,
-            opcUsername = "",
-            opcPassword = "",
-            useOpcUa = true
+        PlcDto(
+            id = "plc-2",
+            name = "PLC-Testing-02",
+            endpointUrl = "opc.tcp://192.168.1.101:4840",
+            connectionState = "Disconnected",
+            tagCount = 32,
+            lastConnected = null
         )
     )
 
     val sampleState = ConfigUiState(
-        newDeviceName = "",
-        newDeviceIp = "",
-        newDevicePort = "4840",
-        newDeviceUsername = "",
-        newDevicePassword = "",
-        deviceList = sampleDevices,
-        currentDevice = sampleDevices.first(),
-        errorMessage = null
+        serverPlcs = samplePlcs,
+        selectedPlcId = "plc-1",
+        isLoadingPlcs = false
     )
 
-    ConfigScreen(
-        uiState = sampleState,
-        connectionState = ControlViewModel.ConnectionState.Connected,
-        onNewDeviceNameChanged = {},
-        onNewDeviceIpChanged = {},
-        onNewDevicePortChanged = {},
-        onNewDeviceApiPortChanged = {},
-        onNewDeviceUsernameChanged = {},
-        onNewDevicePasswordChanged = {},
-        onAddDevice = {},
-        onRemoveDevice = {},
-        onSelectDevice = {}
+    MaterialTheme {
+        ConfigScreen(
+            uiState = sampleState,
+            onRefreshServerPlcs = {},
+            onSelectServerPlc = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 400, heightDp = 800)
+@Composable
+fun ConfigScreenEmptyPreview() {
+    val sampleState = ConfigUiState(
+        serverPlcs = emptyList(),
+        selectedPlcId = null,
+        isLoadingPlcs = false
     )
+
+    MaterialTheme {
+        ConfigScreen(
+            uiState = sampleState,
+            onRefreshServerPlcs = {},
+            onSelectServerPlc = {}
+        )
+    }
 }
