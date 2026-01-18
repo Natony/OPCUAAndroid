@@ -3,6 +3,7 @@ package com.example.s7opcuaapp.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.s7opcuaapp.data.api.LockStatusResponse
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
 import com.example.s7opcuaapp.data.auth.LockManager
@@ -362,4 +363,40 @@ class LoginViewModel @Inject constructor(
      * Check if admin
      */
     fun isAdmin(): Boolean = authManager.isAdmin()
+
+    /**
+     * Check if in demo mode
+     */
+    fun isDemoMode(): Boolean = authManager.isDemoMode()
+
+    // ============== Demo Mode ==============
+
+    /**
+     * Enter demo mode (offline/local mode)
+     * Allows quick access to control screen without API server
+     */
+    fun enterDemoMode(onSuccess: () -> Unit) {
+        Log.d(TAG, "🎮 Entering demo mode...")
+        authManager.enterDemoMode()
+
+        // Set lock state to "have lock" in demo mode
+        lockManager.updateLockStatus(
+            LockStatusResponse(
+                success = true,
+                isLocked = true,
+                isMyLock = true,
+                lockedByUsername = "demo",
+                displayName = "Demo User",
+                remainingSeconds = 30 * 24 * 60 * 60L // 30 days
+            )
+        )
+
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            errorMessage = null
+        )
+
+        Log.d(TAG, "✅ Demo mode activated")
+        onSuccess()
+    }
 }

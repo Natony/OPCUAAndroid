@@ -33,9 +33,21 @@ class AuthManager @Inject constructor(
         private const val KEY_USERNAME = "username"
         private const val KEY_ROLE = "role"
         private const val KEY_DISPLAY_NAME = "display_name"
+        private const val KEY_IS_DEMO_MODE = "is_demo_mode"
 
         // Refresh token 1 minute before expiry
         private const val TOKEN_REFRESH_THRESHOLD_SECONDS = 60
+
+        // Demo user for offline mode
+        val DEMO_USER = UserDto(
+            id = "demo-local-user",
+            username = "demo",
+            role = UserRole.OPERATOR,
+            displayName = "Demo User (Offline)",
+            isActive = true,
+            createdAt = null,
+            lastLoginAt = null
+        )
     }
 
     // Encrypted SharedPreferences for secure token storage
@@ -236,5 +248,45 @@ class AuthManager @Inject constructor(
      */
     fun isAuthenticated(): Boolean {
         return _authState.value is AuthState.Authenticated
+    }
+
+    /**
+     * Check if in demo mode
+     */
+    fun isDemoMode(): Boolean {
+        return prefs.getBoolean(KEY_IS_DEMO_MODE, false)
+    }
+
+    /**
+     * Enter demo mode (offline/local mode)
+     * This creates a fake authenticated state without server
+     */
+    fun enterDemoMode() {
+        prefs.edit().apply {
+            putBoolean(KEY_IS_DEMO_MODE, true)
+            putString(KEY_USER_ID, DEMO_USER.id)
+            putString(KEY_USERNAME, DEMO_USER.username)
+            putString(KEY_ROLE, DEMO_USER.role.name)
+            putString(KEY_DISPLAY_NAME, DEMO_USER.displayName)
+            apply()
+        }
+
+        _currentUser.value = DEMO_USER
+        _authState.value = AuthState.Authenticated(DEMO_USER)
+        Log.d(TAG, "✅ Entered demo mode")
+    }
+
+    /**
+     * Exit demo mode
+     */
+    suspend fun exitDemoMode() = tokenMutex.withLock {
+        prefs.edit().apply {
+            putBoolean(KEY_IS_DEMO_MODE, false)
+            clear()
+            apply()
+        }
+        _authState.value = AuthState.NotAuthenticated
+        _currentUser.value = null
+        Log.d(TAG, "Exited demo mode")
     }
 }

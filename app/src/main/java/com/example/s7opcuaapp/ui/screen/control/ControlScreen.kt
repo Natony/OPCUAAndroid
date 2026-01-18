@@ -1,5 +1,6 @@
 package com.example.s7opcuaapp.ui.screen.control
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.*
@@ -358,7 +359,7 @@ fun ControlScreenOfflinePreview() {
 }
 
 /**
- * Lock control bar showing lock status and acquire/release buttons
+ * Compact lock control bar showing lock status and acquire/release buttons
  */
 @Composable
 private fun LockControlBar(
@@ -367,124 +368,119 @@ private fun LockControlBar(
     onAcquireLock: () -> Unit,
     onReleaseLock: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = when (lockState) {
-            is LockManager.LockState.MyLock -> MaterialTheme.colorScheme.primaryContainer
-            is LockManager.LockState.OtherLock -> MaterialTheme.colorScheme.errorContainer
-            is LockManager.LockState.Error -> MaterialTheme.colorScheme.errorContainer
-            is LockManager.LockState.NoLock,
-            is LockManager.LockState.Unknown,
-            is LockManager.LockState.Acquiring,
-            is LockManager.LockState.Releasing -> MaterialTheme.colorScheme.surfaceVariant
-        },
-        tonalElevation = 2.dp
+    val backgroundColor = when (lockState) {
+        is LockManager.LockState.MyLock -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+        is LockManager.LockState.OtherLock -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+        is LockManager.LockState.Error -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // Compact lock status
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Lock status info
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = when (lockState) {
-                        is LockManager.LockState.MyLock -> Icons.Default.Lock
-                        is LockManager.LockState.OtherLock -> Icons.Default.Lock
-                        else -> Icons.Default.LockOpen
-                    },
-                    contentDescription = null,
-                    tint = when (lockState) {
-                        is LockManager.LockState.MyLock -> MaterialTheme.colorScheme.primary
-                        is LockManager.LockState.OtherLock -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-
-                Column {
-                    Text(
-                        text = when (lockState) {
-                            is LockManager.LockState.MyLock -> "Bạn đang giữ quyền điều khiển"
-                            is LockManager.LockState.OtherLock -> "Đang bị khóa bởi: ${lockState.username}"
-                            is LockManager.LockState.NoLock -> "Chưa có quyền điều khiển"
-                            is LockManager.LockState.Unknown -> "Đang kiểm tra..."
-                            is LockManager.LockState.Acquiring -> "Đang nhận quyền..."
-                            is LockManager.LockState.Releasing -> "Đang trả quyền..."
-                            is LockManager.LockState.Error -> "Lỗi: ${lockState.message}"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    if (lockState is LockManager.LockState.MyLock && remainingSeconds != null) {
-                        Text(
-                            text = "Còn lại: ${remainingSeconds / 60}:${String.format("%02d", remainingSeconds % 60)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            Icon(
+                imageVector = when (lockState) {
+                    is LockManager.LockState.MyLock -> Icons.Default.Lock
+                    is LockManager.LockState.OtherLock -> Icons.Default.Lock
+                    else -> Icons.Default.LockOpen
+                },
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = when (lockState) {
+                    is LockManager.LockState.MyLock -> MaterialTheme.colorScheme.primary
+                    is LockManager.LockState.OtherLock -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
-            }
+            )
 
-            // Action button
-            when (lockState) {
-                is LockManager.LockState.NoLock -> {
-                    Button(
-                        onClick = onAcquireLock,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Nhận quyền")
-                    }
-                }
-
+            // Compact status text with time inline
+            val statusText = when (lockState) {
                 is LockManager.LockState.MyLock -> {
-                    OutlinedButton(
-                        onClick = onReleaseLock,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LockOpen,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Trả quyền")
-                    }
+                    val timeStr = if (remainingSeconds != null) {
+                        " (${remainingSeconds / 60}:${String.format("%02d", remainingSeconds % 60)})"
+                    } else ""
+                    "Đang giữ quyền$timeStr"
                 }
+                is LockManager.LockState.OtherLock -> "Khóa bởi: ${lockState.username ?: "?"}"
+                is LockManager.LockState.NoLock -> "Chưa có quyền"
+                is LockManager.LockState.Unknown -> "Đang kiểm tra..."
+                is LockManager.LockState.Acquiring -> "Đang nhận..."
+                is LockManager.LockState.Releasing -> "Đang trả..."
+                is LockManager.LockState.Error -> "Lỗi"
+            }
 
-                is LockManager.LockState.OtherLock -> {
-                    // Show disabled button or nothing
-                    TextButton(
-                        onClick = { },
-                        enabled = false
-                    ) {
-                        Text("Đang bị khóa")
-                    }
-                }
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+        }
 
-                else -> {
-                    // Unknown state - show loading
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
+        // Compact action button
+        when (lockState) {
+            is LockManager.LockState.NoLock -> {
+                FilledTonalButton(
+                    onClick = onAcquireLock,
+                    modifier = Modifier.height(28.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Nhận", style = MaterialTheme.typography.labelSmall)
                 }
             }
+
+            is LockManager.LockState.MyLock -> {
+                OutlinedButton(
+                    onClick = onReleaseLock,
+                    modifier = Modifier.height(28.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LockOpen,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Trả", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+
+            is LockManager.LockState.OtherLock -> {
+                Text(
+                    text = "Chờ...",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            is LockManager.LockState.Acquiring,
+            is LockManager.LockState.Releasing -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp
+                )
+            }
+
+            else -> { }
         }
     }
 }

@@ -24,6 +24,7 @@ fun LoginScreen(
     onPasswordChanged: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
     onLoginClicked: () -> Unit,
+    onDemoModeClicked: () -> Unit = {},
     onShowServerConfig: () -> Unit = {},
     onServerIpChanged: (String) -> Unit = {},
     onServerPortChanged: (String) -> Unit = {},
@@ -141,6 +142,17 @@ fun LoginScreen(
                         } else {
                             Text("LOGIN")
                         }
+                    }
+
+                    // Demo mode button
+                    OutlinedButton(
+                        onClick = onDemoModeClicked,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        enabled = !uiState.isLoading
+                    ) {
+                        Text("DEMO MODE (Offline)")
                     }
                 }
             }

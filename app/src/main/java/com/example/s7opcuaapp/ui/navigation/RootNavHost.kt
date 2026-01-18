@@ -37,6 +37,14 @@ fun RootNavHost(navController: NavHostController) {
                         }
                     }
                 },
+                // Demo mode callback - go directly to main (skip config)
+                onDemoModeClicked = {
+                    loginViewModel.enterDemoMode {
+                        navController.navigate("main") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    }
+                },
                 // Server config callbacks
                 onShowServerConfig = { loginViewModel.onShowServerConfig() },
                 onServerIpChanged = { ip -> loginViewModel.onServerIpChanged(ip) },
