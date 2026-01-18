@@ -33,8 +33,22 @@ class LockManager @Inject constructor() {
     val lockStatus: StateFlow<LockStatusResponse?> = _lockStatus.asStateFlow()
 
     // Remaining seconds (for UI countdown)
+    // Note: API may return very large values (e.g., year 9999), we cap at 30 days
+    private val MAX_REMAINING_SECONDS = 30 * 24 * 60 * 60 // 30 days in seconds
     private val _remainingSeconds = MutableStateFlow<Int?>(null)
     val remainingSeconds: StateFlow<Int?> = _remainingSeconds.asStateFlow()
+
+    /**
+     * Convert Long seconds to Int, capping at reasonable max
+     */
+    private fun capRemainingSeconds(seconds: Long?): Int? {
+        if (seconds == null) return null
+        return if (seconds > MAX_REMAINING_SECONDS || seconds < 0) {
+            MAX_REMAINING_SECONDS
+        } else {
+            seconds.toInt()
+        }
+    }
 
     // Auto-extend job
     private var autoExtendJob: Job? = null
@@ -89,7 +103,7 @@ class LockManager @Inject constructor() {
         Log.d(TAG, "📥 LockStatusResponse: success=${status?.success}, isLocked=${status?.isLocked}, isMyLock=${status?.isMyLock}, lockedBy=${status?.lockedByUsername}, remainingSeconds=${status?.remainingSeconds}")
 
         _lockStatus.value = status
-        _remainingSeconds.value = status?.remainingSeconds
+        _remainingSeconds.value = capRemainingSeconds(status?.remainingSeconds)
 
         if (status == null) {
             Log.w(TAG, "⚠️ Lock status is null, setting state to Unknown")
@@ -156,10 +170,11 @@ class LockManager @Inject constructor() {
     fun updateFromAcquireResponse(response: AcquireLockResponse) {
         Log.d(TAG, "📥 AcquireLockResponse: success=${response.success}, remainingSeconds=${response.remainingSeconds}, expiresAt=${response.expiresAt}, error=${response.error}")
         if (response.success) {
-            _remainingSeconds.value = response.remainingSeconds
+            val cappedSeconds = capRemainingSeconds(response.remainingSeconds)
+            _remainingSeconds.value = cappedSeconds
             _lockState.value = LockState.MyLock
             startAutoExtendMonitoring()
-            Log.d(TAG, "✅ Lock acquired, expires in ${response.remainingSeconds}s")
+            Log.d(TAG, "✅ Lock acquired, expires in ${cappedSeconds}s (raw: ${response.remainingSeconds}s)")
         } else {
             _lockState.value = LockState.Error(response.error ?: "Failed to acquire lock")
             Log.e(TAG, "❌ Failed to acquire lock: ${response.error}")
@@ -171,8 +186,8 @@ class LockManager @Inject constructor() {
      */
     fun updateFromExtendResponse(response: ExtendLockResponse) {
         if (response.success) {
-            _remainingSeconds.value = response.remainingSeconds
-            Log.d(TAG, "Lock extended, ${response.remainingSeconds}s remaining")
+            _remainingSeconds.value = capRemainingSeconds(response.remainingSeconds)
+            Log.d(TAG, "Lock extended, ${capRemainingSeconds(response.remainingSeconds)}s remaining")
         }
     }
 
@@ -221,7 +236,7 @@ class LockManager @Inject constructor() {
                         val status = onRefreshLockStatus?.invoke()
                         if (status != null) {
                             _lockStatus.value = status
-                            _remainingSeconds.value = status.remainingSeconds
+                            _remainingSeconds.value = capRemainingSeconds(status.remainingSeconds)
 
                             // Check if we still have the lock
                             if (!status.isMyLock) {
