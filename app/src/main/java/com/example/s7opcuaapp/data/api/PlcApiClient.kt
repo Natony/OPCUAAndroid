@@ -102,7 +102,12 @@ class PlcApiClient(
         authToken = token
         // Also set token for SignalR client
         _signalRClient.setAccessToken(token)
-        Log.d(TAG, if (token != null) "Auth token set for API and SignalR" else "Auth token cleared")
+        Log.d(TAG, "═══════════════════════════════════════════════")
+        Log.d(TAG, "🔑 AUTH TOKEN ${if (token != null) "SET" else "CLEARED"}")
+        if (token != null) {
+            Log.d(TAG, "   Token: ${token.take(30)}...")
+        }
+        Log.d(TAG, "═══════════════════════════════════════════════")
     }
 
     /**
@@ -297,13 +302,14 @@ class PlcApiClient(
      */
     suspend fun getAllPlcs(): List<PlcDto> = withContext(Dispatchers.IO) {
         try {
+            Log.d(TAG, "📋 Getting all PLCs - authToken: ${if (authToken != null) "SET (${authToken?.take(20)}...)" else "NULL"}")
             val response = apiService.getAllPlcs()
             if (response.isSuccessful && response.body()?.success == true) {
                 val plcs = response.body()?.data ?: emptyList()
                 Log.d(TAG, "Got ${plcs.size} PLCs from server")
                 plcs
             } else {
-                Log.e(TAG, "Failed to get PLCs: ${response.body()?.error}")
+                Log.e(TAG, "Failed to get PLCs: code=${response.code()}, error=${response.body()?.error}")
                 emptyList()
             }
         } catch (e: Exception) {
