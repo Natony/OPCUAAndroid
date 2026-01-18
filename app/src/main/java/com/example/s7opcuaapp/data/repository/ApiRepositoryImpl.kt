@@ -134,8 +134,8 @@ class ApiRepositoryImpl @Inject constructor(
                         onRestored = { handleConnectionRestored() }
                     )
 
-                    // Connect
-                    val connected = apiClient?.connect(device.id) ?: false
+                    // Connect - let PlcApiClient use its currentPlcId (set when user selected a PLC)
+                    val connected = apiClient?.connect() ?: false
 
                     if (connected) {
                         consecutiveFailures = 0

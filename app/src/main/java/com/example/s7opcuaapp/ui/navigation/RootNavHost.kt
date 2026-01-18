@@ -54,7 +54,7 @@ fun RootNavHost(navController: NavHostController) {
             )
         }
 
-        // 2. ConfigSelect Screen (chọn device lần đầu)
+        // 2. ConfigSelect Screen (chọn device/PLC)
         composable("config_select") {
             val configViewModel: ConfigViewModel = hiltViewModel()
             val uiState by configViewModel.uiState.collectAsStateWithLifecycle()
@@ -78,7 +78,17 @@ fun RootNavHost(navController: NavHostController) {
                     }
                 },
                 onEditDevice = { device -> configViewModel.onEditDevice(device) },
-                onCancelEdit = { configViewModel.onCancelEdit() }
+                onCancelEdit = { configViewModel.onCancelEdit() },
+                // Server PLC callbacks
+                onRefreshServerPlcs = { configViewModel.loadServerPlcs() },
+                onSelectServerPlc = { plc ->
+                    configViewModel.onSelectServerPlc(plc) {
+                        // After selecting server PLC, go to main
+                        navController.navigate("main") {
+                            popUpTo("config_select") { inclusive = true }
+                        }
+                    }
+                }
             )
         }
 

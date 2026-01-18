@@ -29,6 +29,8 @@ class PrefsManager @Inject constructor(context: Context) {
         private const val KEY_API_SERVER_PORT   = "api_server_port"
         private const val DEFAULT_API_SERVER_IP = "192.168.137.1"
         private const val DEFAULT_API_SERVER_PORT = "5000"
+        // Selected PLC from API server
+        private const val KEY_SELECTED_PLC_ID   = "selected_plc_id"
     }
 
     fun saveSession(sessionId: String, userId: String, username: String, role: String) {
@@ -141,5 +143,22 @@ class PrefsManager @Inject constructor(context: Context) {
 
     fun getApiServerUrl(): String {
         return "http://${getApiServerIp()}:${getApiServerPort()}"
+    }
+
+    // Selected PLC ID from API server
+    fun saveSelectedPlcId(plcId: String) {
+        prefs.edit()
+            .putString(KEY_SELECTED_PLC_ID, plcId)
+            .apply()
+    }
+
+    fun getSelectedPlcId(): String? {
+        return prefs.getString(KEY_SELECTED_PLC_ID, null)
+    }
+
+    fun clearSelectedPlcId() {
+        prefs.edit()
+            .remove(KEY_SELECTED_PLC_ID)
+            .apply()
     }
 }

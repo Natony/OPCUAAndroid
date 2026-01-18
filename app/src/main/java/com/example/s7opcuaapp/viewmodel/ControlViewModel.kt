@@ -125,6 +125,13 @@ class ControlViewModel @Inject constructor(
         // Setup LockManager callbacks
         setupLockManagerCallbacks()
 
+        // Load saved PLC ID and set on PlcApiClient
+        val savedPlcId = prefsManager.getSelectedPlcId()
+        if (savedPlcId != null) {
+            plcApiClient.setCurrentPlcId(savedPlcId)
+            Log.d("ControlVM", "Loaded saved PLC ID: $savedPlcId")
+        }
+
         // Monitor UI state changes
         viewModelScope.launch {
             snapshotFlow { uiState.value }

@@ -1,6 +1,7 @@
 package com.example.s7opcuaapp.ui.screen.config
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.s7opcuaapp.data.api.PlcDto
 import com.example.s7opcuaapp.data.model.DeviceEntity
 import com.example.s7opcuaapp.viewmodel.ConfigUiState
 import com.example.s7opcuaapp.viewmodel.ControlViewModel
@@ -36,7 +38,10 @@ fun ConfigScreen(
     onRemoveDevice: (DeviceEntity) -> Unit,
     onSelectDevice: (DeviceEntity) -> Unit,
     onEditDevice: (DeviceEntity) -> Unit = {},
-    onCancelEdit: () -> Unit = {}
+    onCancelEdit: () -> Unit = {},
+    // Server PLC callbacks
+    onRefreshServerPlcs: () -> Unit = {},
+    onSelectServerPlc: (PlcDto) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -96,9 +101,105 @@ fun ConfigScreen(
         // Header
         item {
             Text(
-                text = "Device Configuration",
+                text = "Chọn PLC từ Server",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
+
+        // Server PLCs Section
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "PLCs trên Server (${uiState.serverPlcs.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Row {
+                            if (uiState.selectedPlcId != null) {
+                                Surface(
+                                    shape = MaterialTheme.shapes.small,
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = "Đã chọn: ${uiState.serverPlcs.find { it.id == uiState.selectedPlcId }?.name ?: uiState.selectedPlcId}",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+
+                            IconButton(
+                                onClick = onRefreshServerPlcs,
+                                enabled = !uiState.isLoadingPlcs
+                            ) {
+                                if (uiState.isLoadingPlcs) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Refresh PLCs"
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (uiState.serverPlcs.isEmpty() && !uiState.isLoadingPlcs) {
+                        Text(
+                            text = "Không có PLC nào. Nhấn Refresh để tải lại.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            uiState.serverPlcs.forEach { plc ->
+                                ServerPlcItem(
+                                    plc = plc,
+                                    isSelected = plc.id == uiState.selectedPlcId,
+                                    onSelect = { onSelectServerPlc(plc) }
+                                )
+                            }
+                        }
+                    }
+
+                    uiState.errorMessage?.let { msg ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = msg,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        }
+
+        // Divider
+        item {
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Text(
+                text = "Cấu hình Device local (Tùy chọn)",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }

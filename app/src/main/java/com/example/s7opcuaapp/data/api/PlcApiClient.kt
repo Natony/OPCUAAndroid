@@ -167,36 +167,51 @@ class PlcApiClient(
     }
 
     /**
-     * Connect to the server
+     * Connect to the server with a specific PLC
+     * @param plcId The PLC ID to connect to (required - user must select a PLC first)
      */
     suspend fun connect(plcId: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Connecting to server: $serverUrl")
+            Log.d(TAG, "Connecting to server: $serverUrl with plcId: $plcId")
 
-            // First check if server is reachable via REST and get PLC list
+            // First check if server is reachable
             val statusResponse = apiService.getPlcStatus()
             if (!statusResponse.isSuccessful) {
                 Log.e(TAG, "Server not reachable: ${statusResponse.code()}")
                 return@withContext false
             }
 
-            // Get the first connected PLC's ID from server (not local device ID)
-            val plcList = statusResponse.body()?.data ?: emptyList()
-            val serverPlcId = plcList.firstOrNull()?.plcId
-
-            if (serverPlcId != null) {
-                Log.d(TAG, "Found server PLC ID: $serverPlcId")
-                currentPlcId = serverPlcId
-
-                // Connect to the PLC using server's PLC ID
-                val connectResponse = apiService.connectPlc(serverPlcId)
-                if (!connectResponse.isSuccessful || connectResponse.body()?.success != true) {
-                    Log.w(TAG, "Connect PLC returned: ${connectResponse.body()?.error}, but continuing...")
-                    // Don't fail - PLC might already be connected
+            // Use the provided plcId, or currentPlcId (set by user selection), or fall back to first PLC
+            val targetPlcId = plcId ?: currentPlcId ?: run {
+                // Final fallback: get first PLC from server (for backward compatibility)
+                val plcList = statusResponse.body()?.data ?: emptyList()
+                val firstPlcId = plcList.firstOrNull()?.plcId
+                if (firstPlcId != null) {
+                    Log.w(TAG, "No PLC ID set, using first PLC: $firstPlcId")
+                } else {
+                    Log.e(TAG, "No PLCs available on server")
                 }
-            } else {
-                Log.w(TAG, "No PLCs found on server, using local ID")
-                currentPlcId = plcId
+                firstPlcId
+            }
+
+            if (plcId != null) {
+                Log.d(TAG, "Using provided PLC ID: $plcId")
+            } else if (currentPlcId != null) {
+                Log.d(TAG, "Using user-selected PLC ID: $currentPlcId")
+            }
+
+            if (targetPlcId == null) {
+                Log.e(TAG, "No PLC ID available to connect")
+                return@withContext false
+            }
+
+            currentPlcId = targetPlcId
+
+            // Connect to the specific PLC
+            val connectResponse = apiService.connectPlc(targetPlcId)
+            if (!connectResponse.isSuccessful || connectResponse.body()?.success != true) {
+                Log.w(TAG, "Connect PLC returned: ${connectResponse.body()?.error}, but continuing...")
+                // Don't fail - PLC might already be connected
             }
 
             // Connect to SignalR for real-time updates
@@ -205,10 +220,8 @@ class PlcApiClient(
                 Log.w(TAG, "SignalR connection failed, will use polling")
             }
 
-            // Subscribe to specific PLC if we have an ID
-            currentPlcId?.let { id ->
-                signalRClient.subscribeToPlc(id)
-            }
+            // Subscribe to specific PLC
+            signalRClient.subscribeToPlc(targetPlcId)
 
             _isConnected.value = true
             onConnectionRestored?.invoke()
@@ -248,6 +261,39 @@ class PlcApiClient(
 
         } catch (e: Exception) {
             Log.e(TAG, "Error during disconnect", e)
+        }
+    }
+
+    /**
+     * Get current PLC ID
+     */
+    fun getCurrentPlcId(): String? = currentPlcId
+
+    /**
+     * Set current PLC ID (for use after user selects a PLC)
+     */
+    fun setCurrentPlcId(plcId: String?) {
+        currentPlcId = plcId
+        Log.d(TAG, "Set current PLC ID: $plcId")
+    }
+
+    /**
+     * Get all PLCs from server
+     */
+    suspend fun getAllPlcs(): List<PlcDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getAllPlcs()
+            if (response.isSuccessful && response.body()?.success == true) {
+                val plcs = response.body()?.data ?: emptyList()
+                Log.d(TAG, "Got ${plcs.size} PLCs from server")
+                plcs
+            } else {
+                Log.e(TAG, "Failed to get PLCs: ${response.body()?.error}")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting PLCs", e)
+            emptyList()
         }
     }
 
