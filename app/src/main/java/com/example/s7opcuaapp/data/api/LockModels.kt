@@ -4,26 +4,27 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * Lock status API response wrapper
- * API returns: { "success": true, "data": { ... } }
+ * API returns: { "Success": true, "Data": { ... } }
+ * Note: API uses PascalCase (C# style)
  */
 data class LockStatusApiResponse(
-    @SerializedName("success") val success: Boolean = false,
-    @SerializedName("data") val data: LockStatusData? = null
+    @SerializedName("Success") val success: Boolean = false,
+    @SerializedName("Data") val data: LockStatusData? = null
 )
 
 /**
  * Lock status data inside the response
  */
 data class LockStatusData(
-    @SerializedName("isLocked") val isLocked: Boolean = false,
-    @SerializedName("lockId") val lockId: String? = null,
-    @SerializedName("userId") val userId: String? = null,
-    @SerializedName("username") val lockedByUsername: String? = null,
-    @SerializedName("displayName") val displayName: String? = null,
-    @SerializedName("acquiredAt") val acquiredAt: String? = null,
-    @SerializedName("expiresAt") val expiresAt: String? = null,
-    @SerializedName("timeRemainingSeconds") val remainingSeconds: Long? = null,
-    @SerializedName("isCurrentUser") val isMyLock: Boolean = false
+    @SerializedName("IsLocked") val isLocked: Boolean = false,
+    @SerializedName("LockId") val lockId: String? = null,
+    @SerializedName("UserId") val userId: String? = null,
+    @SerializedName("Username") val lockedByUsername: String? = null,
+    @SerializedName("DisplayName") val displayName: String? = null,
+    @SerializedName("AcquiredAt") val acquiredAt: String? = null,
+    @SerializedName("ExpiresAt") val expiresAt: String? = null,
+    @SerializedName("TimeRemainingSeconds") val remainingSeconds: Long? = null,
+    @SerializedName("IsCurrentUser") val isMyLock: Boolean = false
 )
 
 /**
@@ -63,47 +64,47 @@ data class LockStatusResponse(
  * Acquire lock request
  */
 data class AcquireLockRequest(
-    @SerializedName("durationMinutes") val durationMinutes: Int? = null
+    @SerializedName("DurationMinutes") val durationMinutes: Int? = null
 )
 
 /**
  * Acquire lock response
  */
 data class AcquireLockResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("expiresAt") val expiresAt: String?,
-    @SerializedName("timeRemainingSeconds") val remainingSeconds: Long?,
-    @SerializedName("error") val error: String?
+    @SerializedName("Success") val success: Boolean,
+    @SerializedName("ExpiresAt") val expiresAt: String?,
+    @SerializedName("TimeRemainingSeconds") val remainingSeconds: Long?,
+    @SerializedName("Error") val error: String?
 )
 
 /**
  * Release lock response
  */
 data class ReleaseLockResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("error") val error: String?
+    @SerializedName("Success") val success: Boolean,
+    @SerializedName("Error") val error: String?
 )
 
 /**
  * Extend lock request
  */
 data class ExtendLockRequest(
-    @SerializedName("additionalMinutes") val additionalMinutes: Int? = null
+    @SerializedName("AdditionalMinutes") val additionalMinutes: Int? = null
 )
 
 /**
  * Extend lock response
  */
 data class ExtendLockResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("newExpiresAt") val newExpiresAt: String?,
-    @SerializedName("timeRemainingSeconds") val remainingSeconds: Long?,
-    @SerializedName("error") val error: String?
+    @SerializedName("Success") val success: Boolean,
+    @SerializedName("NewExpiresAt") val newExpiresAt: String?,
+    @SerializedName("TimeRemainingSeconds") val remainingSeconds: Long?,
+    @SerializedName("Error") val error: String?
 )
 
 /**
  * Force release request (Admin only)
  */
 data class ForceReleaseRequest(
-    @SerializedName("reason") val reason: String?
+    @SerializedName("Reason") val reason: String?
 )
