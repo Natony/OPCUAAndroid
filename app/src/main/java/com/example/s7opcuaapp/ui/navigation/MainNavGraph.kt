@@ -238,36 +238,13 @@ fun MainNavGraph(rootNavController: NavHostController) {
 
                 ConfigScreen(
                     uiState = uiState,
-                    connectionState = connectionState,
-                    onNewDeviceNameChanged = { deviceName ->
-                        configViewModel.onNewDeviceNameChanged(deviceName)
-                    },
-                    onNewDeviceIpChanged = { deviceIp ->
-                        configViewModel.onNewDeviceIpChanged(deviceIp)
-                    },
-                    onNewDevicePortChanged = { devicePort ->
-                        configViewModel.onNewDevicePortChanged(devicePort)
-                    },
-                    onNewDeviceApiPortChanged = { apiPort ->
-                        configViewModel.onNewDeviceApiPortChanged(apiPort)
-                    },
-                    onNewDeviceUsernameChanged = { deviceUsername ->
-                        configViewModel.onNewDeviceUsernameChanged(deviceUsername)
-                    },
-                    onNewDevicePasswordChanged = { devicePassword ->
-                        configViewModel.onNewDevicePasswordChanged(devicePassword)
-                    },
-                    onAddDevice = { configViewModel.onAddDevice() },
-                    onRemoveDevice = { device -> configViewModel.onRemoveDevice(device) },
-                    onSelectDevice = { device ->
-                        configViewModel.onSelectDevice(device) {
+                    onRefreshServerPlcs = { configViewModel.loadServerPlcs() },
+                    onSelectServerPlc = { plc ->
+                        configViewModel.onSelectServerPlc(plc) {
                             coroutineScope.launch {
-                                Log.d("MainNavGraph", "📱 Device selected: ${device.name}")
+                                Log.d("MainNavGraph", "📱 PLC selected: ${plc.name}")
 
-                                // Update current device
-                                currentDevice.value = device
-
-                                // Complete reset when changing device
+                                // Complete reset when changing PLC
                                 Log.d("MainNavGraph", "🛑 Stopping current connection...")
                                 controlViewModel.stopConnection()
 
@@ -289,9 +266,7 @@ fun MainNavGraph(rootNavController: NavHostController) {
                                 }
                             }
                         }
-                    },
-                    onEditDevice = { device -> configViewModel.onEditDevice(device) },
-                    onCancelEdit = { configViewModel.onCancelEdit() }
+                    }
                 )
             }
         }
