@@ -247,10 +247,11 @@ class PlcApiClient(
 
     /**
      * Disconnect from the server
+     * Note: Does NOT clear currentPlcId - the user's PLC selection should persist
      */
     suspend fun disconnect() = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Disconnecting...")
+            Log.d(TAG, "Disconnecting from PLC: $currentPlcId...")
 
             // Disconnect PLC if connected
             currentPlcId?.let { plcId ->
@@ -264,9 +265,9 @@ class PlcApiClient(
             // Disconnect SignalR
             signalRClient.disconnect()
 
-            currentPlcId = null
+            // Don't clear currentPlcId - keep user's selection
             _isConnected.value = false
-            Log.d(TAG, "Disconnected")
+            Log.d(TAG, "Disconnected (currentPlcId preserved: $currentPlcId)")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error during disconnect", e)
@@ -282,8 +283,13 @@ class PlcApiClient(
      * Set current PLC ID (for use after user selects a PLC)
      */
     fun setCurrentPlcId(plcId: String?) {
+        val oldPlcId = currentPlcId
         currentPlcId = plcId
-        Log.d(TAG, "Set current PLC ID: $plcId")
+        Log.d(TAG, "═══════════════════════════════════════════════")
+        Log.d(TAG, "🔄 PLC ID CHANGED")
+        Log.d(TAG, "   Old: $oldPlcId")
+        Log.d(TAG, "   New: $plcId")
+        Log.d(TAG, "═══════════════════════════════════════════════")
     }
 
     /**
