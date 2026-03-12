@@ -20,9 +20,9 @@ class PlcApiClient(
 ) {
     companion object {
         private const val TAG = "PlcApiClient"
-        private const val CONNECT_TIMEOUT = 30L
-        private const val READ_TIMEOUT = 30L
-        private const val WRITE_TIMEOUT = 30L
+        private const val CONNECT_TIMEOUT = 10L  // Reduced from 30s
+        private const val READ_TIMEOUT = 10L     // Reduced from 30s
+        private const val WRITE_TIMEOUT = 5L     // Reduced to 5s for faster manual control
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -361,6 +361,7 @@ class PlcApiClient(
     private suspend fun writeValue(nodeId: String, value: Any): Boolean {
         val plcId = currentPlcId ?: return false
 
+        val startTime = System.currentTimeMillis()
         return try {
             // URL encode the nodeId
             val encodedNodeId = java.net.URLEncoder.encode(nodeId, "UTF-8")
@@ -371,15 +372,17 @@ class PlcApiClient(
                 request = WriteTagRequest(value)
             )
 
+            val elapsed = System.currentTimeMillis() - startTime
             if (response.isSuccessful && response.body()?.success == true) {
-                Log.d(TAG, "Write successful: $nodeId = $value")
+                Log.d(TAG, "✅ Write OK: $nodeId=$value in ${elapsed}ms")
                 true
             } else {
-                Log.e(TAG, "Write failed: ${response.body()?.error}")
+                Log.e(TAG, "❌ Write failed: ${response.body()?.error} (${elapsed}ms)")
                 false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error writing tag: $nodeId", e)
+            val elapsed = System.currentTimeMillis() - startTime
+            Log.e(TAG, "❌ Write error: $nodeId (${elapsed}ms)", e)
             false
         }
     }

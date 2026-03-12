@@ -801,8 +801,11 @@ class ControlViewModel @Inject constructor(
 
     /**
      * Internal thread-safe button release implementation
+     * Optimized: Update state immediately, API call async
      */
     private suspend fun performButtonRelease(index: Int): Boolean {
+        val startTime = System.currentTimeMillis()
+
         val currentState = buttonStates[index]
         if (currentState?.isPressed != true) {
             Log.w("ControlVM", "Button $index not pressed, ignoring release")
@@ -813,18 +816,11 @@ class ControlViewModel @Inject constructor(
             // Cancel any ongoing operation
             currentState.operationJob?.cancel()
 
-            // Remove from pressed set
+            // Immediately update local state (optimistic update)
             pressedButtons.remove(index)
-
-            // Update UI state
             updateButtonStates { it - index }
 
-            // Write to PLC
-            if (connectionStarted) {
-                repoImpl.writeBoolean(index, false)
-            }
-
-            // Update button state
+            // Update button state immediately
             buttonStates[index] = currentState.copy(
                 isPressed = false,
                 lastActionTime = System.currentTimeMillis(),
@@ -836,7 +832,26 @@ class ControlViewModel @Inject constructor(
                 currentProcessingButton = null
             }
 
-            Log.d("ControlVM", "✅ Button $index released successfully")
+            val stateTime = System.currentTimeMillis() - startTime
+            Log.d("ControlVM", "🔄 Button $index state updated in ${stateTime}ms")
+
+            // Write to PLC async (fire-and-forget for faster response)
+            if (connectionStarted) {
+                viewModelScope.launch(Dispatchers.IO) {
+                    val apiStartTime = System.currentTimeMillis()
+                    try {
+                        repoImpl.writeBoolean(index, false)
+                        val apiTime = System.currentTimeMillis() - apiStartTime
+                        Log.d("ControlVM", "✅ Button $index release API took ${apiTime}ms")
+                    } catch (e: Exception) {
+                        val apiTime = System.currentTimeMillis() - apiStartTime
+                        Log.e("ControlVM", "❌ Button $index release API failed after ${apiTime}ms", e)
+                    }
+                }
+            }
+
+            val totalTime = System.currentTimeMillis() - startTime
+            Log.d("ControlVM", "✅ Button $index released in ${totalTime}ms (API async)")
             return true
 
         } catch (e: Exception) {
@@ -1106,14 +1121,14 @@ class ControlViewModel @Inject constructor(
 
     /**
      * Internal thread-safe button press implementation
+     * Optimized: Fast checks first, API call done async (fire-and-forget for manual buttons)
      */
     private suspend fun performButtonPress(index: Int): Boolean {
-        // Check if in offline mode first
+        val startTime = System.currentTimeMillis()
+
+        // Quick checks first (no blocking)
         if (_connectionState.value is ConnectionState.Offline) {
             Log.w("ControlVM", "Cannot press button in offline mode")
-            _uiState.update {
-                it.copy(errorMessage = "Controls disabled in offline mode")
-            }
             return false
         }
 
@@ -1149,48 +1164,48 @@ class ControlViewModel @Inject constructor(
         }
 
         try {
-            // For manual movement buttons, release others in group
+            // For manual movement buttons, release others in group (async)
             val manualButtons = setOf(0, 1, 2, 3)
-            if (index in manualButtons) {
-                releaseButtonGroup(manualButtons, except = index)
+            val isManualButton = index in manualButtons
+            if (isManualButton) {
+                // Fire-and-forget release for other manual buttons
+                viewModelScope.launch {
+                    releaseButtonGroup(manualButtons, except = index)
+                }
             }
 
-            // Create new button state
+            // Immediately update local state (optimistic update)
+            pressedButtons.add(index)
+            updateButtonStates { it + index }
+
+            val checkTime = System.currentTimeMillis() - startTime
+            Log.d("ControlVM", "🔄 Button $index checks done in ${checkTime}ms")
+
+            // Create button state with async API call
             val newState = ButtonState(
                 index = index,
                 isPressed = true,
                 lastActionTime = now,
-                operationJob = viewModelScope.launch {
+                operationJob = viewModelScope.launch(Dispatchers.IO) {
+                    val apiStartTime = System.currentTimeMillis()
                     try {
-                        // Add to pressed set
-                        pressedButtons.add(index)
-
-                        // Update UI state
-                        updateButtonStates { it + index }
-
-                        // Write to PLC
+                        // Write to PLC (this is the slow part)
                         repoImpl.writeBoolean(index, true)
 
-                        Log.d("ControlVM", "✅ Button $index pressed successfully")
+                        val apiTime = System.currentTimeMillis() - apiStartTime
+                        Log.d("ControlVM", "✅ Button $index API call took ${apiTime}ms")
                     } catch (e: Exception) {
-                        Log.e("ControlVM", "Error pressing button $index", e)
+                        val apiTime = System.currentTimeMillis() - apiStartTime
+                        Log.e("ControlVM", "❌ Button $index API failed after ${apiTime}ms", e)
 
                         // Cleanup on error
                         pressedButtons.remove(index)
                         updateButtonStates { it - index }
 
-                        // Check if connection lost
                         if (e.message?.contains("Not connected", ignoreCase = true) == true ||
                             e.message?.contains("connection", ignoreCase = true) == true) {
                             handleConnectionLost()
-                        } else {
-                            _uiState.update {
-                                it.copy(errorMessage = "Failed to press button: ${e.message}")
-                            }
                         }
-
-                        // Don't throw - return gracefully
-                        return@launch
                     }
                 }
             )
@@ -1199,13 +1214,12 @@ class ControlViewModel @Inject constructor(
             buttonStates[index] = newState
             currentProcessingButton = index
 
+            val totalTime = System.currentTimeMillis() - startTime
+            Log.d("ControlVM", "✅ Button $index press initiated in ${totalTime}ms (API call async)")
             return true
 
         } catch (e: Exception) {
             Log.e("ControlVM", "Failed to press button $index", e)
-            _uiState.update {
-                it.copy(errorMessage = "Button operation failed: ${e.message}")
-            }
             return false
         } finally {
             globalProcessingMutex.unlock()
