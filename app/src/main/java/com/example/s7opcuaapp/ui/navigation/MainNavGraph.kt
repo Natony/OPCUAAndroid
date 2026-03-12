@@ -238,9 +238,8 @@ fun MainNavGraph(rootNavController: NavHostController) {
             }
 
             composable("status_lock_config") {
-                val statusLockConfigViewModel: StatusLockConfigViewModel = hiltViewModel()
-                com.example.s7opcuaapp.ui.screen.admin.StatusLockConfigScreen(
-                    viewModel = statusLockConfigViewModel,
+                // New ButtonLockRulesScreen with flexible condition-based locking
+                com.example.s7opcuaapp.ui.screen.admin.ButtonLockRulesScreen(
                     onBack = { topNavController.popBackStack() }
                 )
             }
