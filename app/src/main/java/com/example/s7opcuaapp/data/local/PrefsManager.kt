@@ -32,6 +32,9 @@ class PrefsManager @Inject constructor(context: Context) {
         // Selected PLC from API server
         private const val KEY_SELECTED_PLC_ID   = "selected_plc_id"
         private const val KEY_SELECTED_PLC_NAME = "selected_plc_name"
+        // Button lock rules
+        private const val KEY_BUTTON_LOCK_RULES = "button_lock_rules_v2"
+        private const val KEY_BUTTON_LOCK_RULES_OVERRIDE = "button_lock_rules_override"
     }
 
     fun saveSession(sessionId: String, userId: String, username: String, role: String) {
@@ -169,5 +172,26 @@ class PrefsManager @Inject constructor(context: Context) {
             .remove(KEY_SELECTED_PLC_ID)
             .remove(KEY_SELECTED_PLC_NAME)
             .apply()
+    }
+
+    // Button lock rules
+    fun saveButtonLockRules(config: String) {
+        prefs.edit()
+            .putString(KEY_BUTTON_LOCK_RULES, config)
+            .apply()
+    }
+
+    fun getButtonLockRules(): String? {
+        return prefs.getString(KEY_BUTTON_LOCK_RULES, null)
+    }
+
+    fun setButtonLockRulesOverride(enabled: Boolean) {
+        prefs.edit()
+            .putBoolean(KEY_BUTTON_LOCK_RULES_OVERRIDE, enabled)
+            .apply()
+    }
+
+    fun getButtonLockRulesOverride(): Boolean {
+        return prefs.getBoolean(KEY_BUTTON_LOCK_RULES_OVERRIDE, false)
     }
 }

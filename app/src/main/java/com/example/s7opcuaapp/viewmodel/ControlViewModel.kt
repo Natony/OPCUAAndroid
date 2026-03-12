@@ -13,6 +13,7 @@ import com.example.s7opcuaapp.data.repository.ApiRepositoryImpl
 import com.example.s7opcuaapp.data.repository.S7Repository
 import com.example.s7opcuaapp.ui.screen.control.ControlUiState
 import com.example.s7opcuaapp.util.ButtonLockConfig
+import com.example.s7opcuaapp.util.ButtonLockRules
 import com.example.s7opcuaapp.util.ConnectionTimeoutManager
 import com.example.s7opcuaapp.util.PerformanceMonitor
 import com.example.s7opcuaapp.util.StatusLockConfig
@@ -33,6 +34,7 @@ class ControlViewModel @Inject constructor(
     private val performanceMonitor: PerformanceMonitor,
     private val buttonLockConfig: ButtonLockConfig,
     private val statusLockConfig: StatusLockConfig,
+    private val buttonLockRules: ButtonLockRules,
     private val connectionTimeoutManager: ConnectionTimeoutManager,
     private val authManager: AuthManager,
     private val lockManager: LockManager,
@@ -770,8 +772,6 @@ class ControlViewModel @Inject constructor(
         // Lấy active buttons từ PLC data
         val activeButtons = getActiveButtons(data)
 
-        val currentStatus = data.ints.getOrNull(0) ?: 0
-
         // Tính toán locked buttons
         val lockedButtons = if (currentProcessingButton != null) {
             // Nếu đang xử lý, khóa tất cả nút trừ nút đang xử lý
@@ -780,13 +780,13 @@ class ControlViewModel @Inject constructor(
                 allButtons - it
             } ?: allButtons
         } else {
-            // CHỈ SỬ DỤNG STATUS LOCKS
-            statusLockConfig.getLockedButtonsForStatus(currentStatus)
+            // SỬ DỤNG BUTTON LOCK RULES (đánh giá dựa trên bool/int conditions)
+            buttonLockRules.getLockedButtons(data)
         }
 
-        // Debug logging for status-based locking
+        // Debug logging for button lock rules
         if (lockedButtons.isNotEmpty()) {
-            Log.d("ControlVM", "📋 Status=$currentStatus, locked buttons: ${lockedButtons.size} buttons")
+            Log.d("ControlVM", "📋 Locked buttons by rules: ${lockedButtons.size} buttons: $lockedButtons")
         }
 
         _uiState.update {

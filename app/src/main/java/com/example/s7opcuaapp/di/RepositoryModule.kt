@@ -7,6 +7,7 @@ import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.DeviceEntity
 import com.example.s7opcuaapp.data.repository.*
 import com.example.s7opcuaapp.util.ButtonLockConfig
+import com.example.s7opcuaapp.util.ButtonLockRules
 import com.example.s7opcuaapp.util.PerformanceMonitor
 import com.example.s7opcuaapp.util.StatusLockConfig
 import dagger.Module
@@ -44,6 +45,12 @@ object RepositoryModule {
     @Singleton
     fun provideButtonLockConfig(statusLockConfig: StatusLockConfig): ButtonLockConfig {
         return ButtonLockConfig(statusLockConfig)
+    }
+
+    @Provides
+    @Singleton
+    fun provideButtonLockRules(prefsManager: PrefsManager): ButtonLockRules {
+        return ButtonLockRules(prefsManager)
     }
 
     @Provides
