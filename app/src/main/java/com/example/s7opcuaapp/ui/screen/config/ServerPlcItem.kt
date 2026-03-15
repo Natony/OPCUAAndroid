@@ -6,14 +6,56 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.s7opcuaapp.data.api.PlcDto
+
+/**
+ * Connection state colors and icons
+ */
+private data class ConnectionStateInfo(
+    val icon: ImageVector,
+    val color: Color,
+    val label: String
+)
+
+private fun getConnectionStateInfo(state: String): ConnectionStateInfo {
+    return when (state.lowercase()) {
+        "connected" -> ConnectionStateInfo(
+            icon = Icons.Default.CheckCircle,
+            color = Color(0xFF4CAF50), // Green
+            label = "Connected"
+        )
+        "connecting", "reconnecting" -> ConnectionStateInfo(
+            icon = Icons.Default.Refresh,
+            color = Color(0xFFFFC107), // Yellow/Amber
+            label = if (state.equals("reconnecting", true)) "Reconnecting..." else "Connecting..."
+        )
+        "error", "failed" -> ConnectionStateInfo(
+            icon = Icons.Default.Error,
+            color = Color(0xFFF44336), // Red
+            label = "Error"
+        )
+        "disconnected" -> ConnectionStateInfo(
+            icon = Icons.Default.Circle,
+            color = Color(0xFF9E9E9E), // Gray
+            label = "Disconnected"
+        )
+        else -> ConnectionStateInfo(
+            icon = Icons.Default.Circle,
+            color = Color(0xFFBDBDBD), // Light gray
+            label = state
+        )
+    }
+}
 
 /**
  * Displays a PLC from the server list
@@ -30,6 +72,8 @@ fun ServerPlcItem(
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }
+
+    val stateInfo = getConnectionStateInfo(plc.connectionState)
 
     Surface(
         modifier = Modifier
@@ -55,27 +99,42 @@ fun ServerPlcItem(
                 modifier = Modifier.weight(1f)
             ) {
                 // Status indicator based on connectionState
-                val isConnected = plc.connectionState.equals("Connected", ignoreCase = true)
                 Icon(
-                    imageVector = if (isConnected) Icons.Default.CheckCircle else Icons.Default.Circle,
-                    contentDescription = null,
+                    imageVector = stateInfo.icon,
+                    contentDescription = stateInfo.label,
                     modifier = Modifier.size(16.dp),
-                    tint = if (isConnected) Color(0xFF4CAF50) else Color(0xFFBDBDBD)
+                    tint = stateInfo.color
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Column {
-                    Text(
-                        text = plc.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = plc.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        // Connection state badge
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = stateInfo.color.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = stateInfo.label,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = stateInfo.color,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
 
                     Text(
-                        text = "ID: ${plc.id}",
+                        text = "ID: ${plc.id} • Tags: ${plc.tagCount}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         else MaterialTheme.colorScheme.onSurfaceVariant

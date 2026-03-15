@@ -1,6 +1,7 @@
 package com.example.s7opcuaapp.data.repository
 
 import android.util.Log
+import com.example.s7opcuaapp.data.api.ConnectionStatusDto
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.api.TagValueUpdate
 import com.example.s7opcuaapp.data.buffer.PlcDataBuffer
@@ -53,6 +54,11 @@ class ApiRepositoryImpl @Inject constructor(
     private val isConnected = AtomicBoolean(false)
     private var connectionJob: Job? = null
     private var signalRJob: Job? = null
+    private var connectionStatusJob: Job? = null
+
+    // Server-side connection status (from SignalR)
+    private val _serverConnectionStatus = MutableStateFlow<ConnectionStatusDto?>(null)
+    val serverConnectionStatus: StateFlow<ConnectionStatusDto?> = _serverConnectionStatus
 
     // Node IDs configuration - must match WPF server tags
     // bool1-bool15: ns=4;i=13 to ns=4;i=27
@@ -193,6 +199,26 @@ class ApiRepositoryImpl @Inject constructor(
         signalRJob = repositoryScope.launch {
             apiClient?.observeTagUpdates()?.collect { update ->
                 handleTagUpdate(update)
+            }
+        }
+
+        // Listen for connection status updates from server
+        connectionStatusJob?.cancel()
+        connectionStatusJob = repositoryScope.launch {
+            apiClient?.observeConnectionStatus()?.collect { status ->
+                Log.d(TAG, "📡 Server connection status: plcId=${status.plcId}, state=${status.state}, isConnected=${status.isConnected}")
+                _serverConnectionStatus.value = status
+
+                // Update local connection state based on server status
+                if (status.plcId == device.id || status.plcId == device.name) {
+                    if (status.isConnected && !isConnected.get()) {
+                        Log.d(TAG, "🟢 Server reports PLC connected")
+                        isConnected.set(true)
+                    } else if (!status.isConnected && isConnected.get()) {
+                        Log.d(TAG, "🔴 Server reports PLC disconnected: ${status.state}")
+                        isConnected.set(false)
+                    }
+                }
             }
         }
     }
@@ -417,8 +443,11 @@ class ApiRepositoryImpl @Inject constructor(
 
             connectionJob?.cancel()
             signalRJob?.cancel()
+            connectionStatusJob?.cancel()
             connectionJob = null
             signalRJob = null
+            connectionStatusJob = null
+            _serverConnectionStatus.value = null
 
             // Disconnect but don't cleanup shared client
             apiClient?.disconnect()
