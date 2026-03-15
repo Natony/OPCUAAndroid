@@ -79,13 +79,15 @@ class ControlViewModel @Inject constructor(
     private val buttonStates = ConcurrentHashMap<Int, ButtonState>()
 
     // Global processing lock - chỉ cho phép 1 operation tại 1 thời điểm
+    // IMPORTANT: Sử dụng CHUNG cho tất cả các loại nút để tránh race condition
     private val globalProcessingLock = Mutex()
 
     private val pressedButtons = mutableSetOf<Int>()
 
     // THREAD-SAFE: Mutex for critical sections
     private val buttonOperationMutex = Mutex()
-    private val globalProcessingMutex = Mutex()
+    // NOTE: globalProcessingLock được thay bằng globalProcessingLock để tránh race condition
+    // giữa các loại nút khác nhau (auto bool, int buttons, manual buttons)
 
     // control auto-retry
     private var autoRetryEnabled = true
@@ -1090,27 +1092,32 @@ class ControlViewModel @Inject constructor(
                 return@launch
             }
 
-            globalProcessingMutex.withLock {
-                try {
-                    // Update UI to show processing
-                    _uiState.update { it.copy(busyButtons = it.busyButtons + index) }
+            // Sử dụng tryLock để không block - nếu đang có operation khác thì từ chối
+            if (!globalProcessingLock.tryLock()) {
+                Log.d("ControlVM", "❌ Cannot toggle boolean $index - another operation in progress")
+                return@launch
+            }
 
-                    // Write to PLC
-                    repoImpl.writeBoolean(index, newValue)
+            try {
+                // Update UI to show processing
+                _uiState.update { it.copy(busyButtons = it.busyButtons + index) }
 
-                } catch (e: Exception) {
-                    Log.e("ControlVM", "Error toggling boolean $index", e)
-                    _uiState.update { it.copy(errorMessage = e.message) }
+                // Write to PLC
+                repoImpl.writeBoolean(index, newValue)
 
-                    // Check if connection lost
-                    if (e.message?.contains("connection", ignoreCase = true) == true ||
-                        e.message?.contains("timeout", ignoreCase = true) == true) {
-                        handleConnectionLost()
-                    }
-                } finally {
-                    // Clear busy state
-                    _uiState.update { it.copy(busyButtons = it.busyButtons - index) }
+            } catch (e: Exception) {
+                Log.e("ControlVM", "Error toggling boolean $index", e)
+                _uiState.update { it.copy(errorMessage = e.message) }
+
+                // Check if connection lost
+                if (e.message?.contains("connection", ignoreCase = true) == true ||
+                    e.message?.contains("timeout", ignoreCase = true) == true) {
+                    handleConnectionLost()
                 }
+            } finally {
+                // Clear busy state
+                _uiState.update { it.copy(busyButtons = it.busyButtons - index) }
+                globalProcessingLock.unlock()
             }
         }
     }
@@ -1200,7 +1207,7 @@ class ControlViewModel @Inject constructor(
         }
 
         // Check if another button is being processed globally
-        if (!globalProcessingMutex.tryLock()) {
+        if (!globalProcessingLock.tryLock()) {
             Log.w("ControlVM", "Another button operation in progress")
             return false
         }
@@ -1264,7 +1271,7 @@ class ControlViewModel @Inject constructor(
             Log.e("ControlVM", "Failed to press button $index", e)
             return false
         } finally {
-            globalProcessingMutex.unlock()
+            globalProcessingLock.unlock()
         }
     }
 

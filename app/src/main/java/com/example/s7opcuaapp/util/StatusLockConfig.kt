@@ -24,24 +24,26 @@ class StatusLockConfig @Inject constructor(
         private const val PREFS_KEY_STATUS_LOCK_CONFIG = "status_lock_config"
         const val SEND_ALL_BUTTON_INDEX = 999  // Special index cho nút Send All
 
-        // Default status descriptions
+        // Default status descriptions - Mapping với các nút chức năng
+        // 0: Chưa sẵn sàng (default/uninitialized)
+        // 1: Đã sẵn sàng (ready - unlock buttons)
+        // 2: Dừng khẩn cấp (emergency stop)
+        // 3-13: Đang thực hiện các chức năng (lock buttons)
         val DEFAULT_STATUS_DESCRIPTIONS = mapOf(
             0 to "Chưa sẵn sàng",
             1 to "Đã sẵn sàng",
-            2 to "Đang thực hiện 1",
-            3 to "Đang thực hiện 2",
-            4 to "Đang thực hiện 3",
-            5 to "Đang thực hiện 4",
-            6 to "Đang thực hiện 5",
-            7 to "Hoàn thành",
-            8 to "Đang kết nối",
-            9 to "Mất kết nối",
-            10 to "Cảnh báo",
-            11 to "Khẩn cấp",
-            12 to "Đang hiệu chỉnh",
-            13 to "Đang kiểm tra",
-            14 to "Chờ xác nhận",
-            15 to "Đang cập nhật"
+            2 to "Dừng khẩn cấp",
+            3 to "Đang nhập n pallet",       // Nút Pallets Plus (int[3])
+            4 to "Đang xuất n pallet",       // Nút Pallets Minus (int[4])
+            5 to "Đang nhập pallet",         // Nút Pallet Plus (bool[7])
+            // Note: Status 6 không sử dụng
+            7 to "Đang xuất pallet",         // Nút Pallet Minus (bool[6])
+            8 to "Đang Stack A",             // Nút Stack A (bool[8])
+            9 to "Đang Stack B",             // Nút Stack B (bool[9])
+            10 to "Đang tiến",               // Nút Forward (bool[0])
+            11 to "Đang lùi",                // Nút Reverse (bool[1])
+            12 to "Đang nâng",               // Nút Up (bool[2])
+            13 to "Đang hạ"                  // Nút Down (bool[3])
         )
     }
 
@@ -54,46 +56,44 @@ class StatusLockConfig @Inject constructor(
     )
 
     // Default configuration
+    // Logic: Chỉ mở khóa khi status = 1 (Đã sẵn sàng) VÀ Power ON
+    // Tất cả các status khác đều lock buttons
     private val defaultRules = DEFAULT_STATUS_DESCRIPTIONS.mapValues { (status, description) ->
         when (status) {
             0 -> StatusLockRule(
                 statusValue = status,
                 description = description,
-                lockAllButtons = false, // Status 0 (default/uninitialized) - don't lock buttons
+                lockAllButtons = true, // Chưa sẵn sàng - LOCK all
                 isEnabled = true,
-                exemptButtons = emptySet()
+                exemptButtons = setOf(4, 5) // Chỉ cho Power (4) và Reset (5)
             )
             1 -> StatusLockRule(
                 statusValue = status,
                 description = description,
-                lockAllButtons = false, // Ready - no locks
-                isEnabled = true
-            )
-            in 2..6 -> StatusLockRule(
-                statusValue = status,
-                description = description,
-                lockAllButtons = true, // Executing - lock all
+                lockAllButtons = false, // Đã sẵn sàng - UNLOCK all
                 isEnabled = true,
-                exemptButtons = setOf(10) // Emergency stop
+                exemptButtons = emptySet()
             )
-            7 -> StatusLockRule(
+            2 -> StatusLockRule(
                 statusValue = status,
                 description = description,
-                lockAllButtons = false, // Complete - no locks
-                isEnabled = true
-            )
-            11 -> StatusLockRule(
-                statusValue = status,
-                description = description,
-                lockAllButtons = true, // Emergency - lock ALL
+                lockAllButtons = true, // Dừng khẩn cấp - LOCK all
                 isEnabled = true,
-                exemptButtons = emptySet() // No exceptions
+                exemptButtons = setOf(5) // Chỉ cho Reset (5)
+            )
+            in 3..5, 7, in 8..13 -> StatusLockRule(
+                statusValue = status,
+                description = description,
+                lockAllButtons = true, // Đang thực hiện - LOCK all
+                isEnabled = true,
+                exemptButtons = setOf(10) // Chỉ cho Emergency Stop (10)
             )
             else -> StatusLockRule(
                 statusValue = status,
                 description = description,
-                lockAllButtons = false,
-                isEnabled = false // Disabled by default for other statuses
+                lockAllButtons = true, // Unknown status - LOCK all for safety
+                isEnabled = true,
+                exemptButtons = setOf(10) // Emergency stop always available
             )
         }
     }

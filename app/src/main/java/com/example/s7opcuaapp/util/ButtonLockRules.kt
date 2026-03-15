@@ -43,8 +43,8 @@ class ButtonLockRules @Inject constructor(
             12 to "Alarm Ack",
             13 to "Direction",
             14 to "Count Pallet",
-            203 to "Số pallet lấy ra",
-            204 to "Số pallet đưa vào",
+            203 to "Số pallet đưa vào",    // int[3] - Pallets Plus
+            204 to "Số pallet lấy ra",     // int[4] - Pallets Minus
             999 to "Send All"
         )
 
@@ -338,11 +338,43 @@ class ButtonLockRules @Inject constructor(
 
     /**
      * Load default rules
+     * Logic mặc định:
+     * - Khóa TẤT CẢ nút khi Power OFF hoặc Status != 1
+     * - Chỉ mở khóa khi Power ON VÀ Status = 1 (Đã sẵn sàng)
+     * - Khóa khi đang thực hiện (status 2-13)
      */
     private fun loadDefaultRules() {
         val defaults = mutableListOf<LockRule>()
 
-        // Rule 1: Lock Power Off (4) when Emergency (10) is active
+        // Danh sách tất cả các nút điều khiển (trừ Emergency Stop và Reset)
+        val allControlButtons = listOf(0, 1, 2, 3, 6, 7, 8, 9, 14, 203, 204, 999)
+
+        // Rule 1: Khóa TẤT CẢ nút khi Power (4) OFF
+        // Chỉ mở khóa khi Power ON
+        allControlButtons.forEach { btnIndex ->
+            defaults.add(LockRule(
+                targetButtonIndex = btnIndex,
+                conditions = listOf(Condition.BoolEquals(boolIndex = 4, expectedValue = false)),
+                operator = LogicOperator.OR,
+                isEnabled = true,
+                description = "Khóa khi Power chưa bật"
+            ))
+        }
+
+        // Rule 2: Khóa TẤT CẢ nút khi Status != 1 (không sẵn sàng)
+        // Status 0: Chưa sẵn sàng
+        // Status 2-13: Đang thực hiện các chức năng
+        allControlButtons.forEach { btnIndex ->
+            defaults.add(LockRule(
+                targetButtonIndex = btnIndex,
+                conditions = listOf(Condition.IntNotEquals(intIndex = 0, notExpectedValue = 1)),
+                operator = LogicOperator.OR,
+                isEnabled = true,
+                description = "Khóa khi Status không sẵn sàng (!=1)"
+            ))
+        }
+
+        // Rule 3: Lock Power Off (4) when Emergency (10) is active
         // Nghĩa là: Khi đang Emergency thì không được tắt Power
         defaults.add(LockRule(
             targetButtonIndex = 4,
@@ -352,42 +384,7 @@ class ButtonLockRules @Inject constructor(
             description = "Khóa nút Power khi Emergency đang kích hoạt"
         ))
 
-        // Rule 2: Lock auto buttons (6,7,8,9) when Power (4) is OFF
-        // Nghĩa là: Các nút tự động chỉ hoạt động khi Power đã bật
-        listOf(6, 7, 8, 9).forEach { btnIndex ->
-            defaults.add(LockRule(
-                targetButtonIndex = btnIndex,
-                conditions = listOf(Condition.BoolEquals(boolIndex = 4, expectedValue = false)),
-                operator = LogicOperator.OR,
-                isEnabled = true,
-                description = "Khóa nút Auto khi Power chưa bật"
-            ))
-        }
-
-        // Rule 3: Lock manual buttons (0,1,2,3) when Power (4) is OFF
-        listOf(0, 1, 2, 3).forEach { btnIndex ->
-            defaults.add(LockRule(
-                targetButtonIndex = btnIndex,
-                conditions = listOf(Condition.BoolEquals(boolIndex = 4, expectedValue = false)),
-                operator = LogicOperator.OR,
-                isEnabled = true,
-                description = "Khóa nút Manual khi Power chưa bật"
-            ))
-        }
-
-        // Rule 4: Lock all except Emergency when status is 2-6 (executing)
-        val executingButtons = listOf(0, 1, 2, 3, 4, 6, 7, 8, 9, 14, 203, 204, 999)
-        executingButtons.forEach { btnIndex ->
-            defaults.add(LockRule(
-                targetButtonIndex = btnIndex,
-                conditions = listOf(Condition.IntInRange(intIndex = 0, minValue = 2, maxValue = 6)),
-                operator = LogicOperator.OR,
-                isEnabled = true,
-                description = "Khóa khi đang thực hiện (status 2-6)"
-            ))
-        }
-
-        // Rule 5: Lock Send All when Emergency is active
+        // Rule 4: Lock Send All when Emergency is active
         defaults.add(LockRule(
             targetButtonIndex = 999,
             conditions = listOf(Condition.BoolEquals(boolIndex = 10, expectedValue = true)),
