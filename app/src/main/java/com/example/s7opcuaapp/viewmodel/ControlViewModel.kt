@@ -220,6 +220,48 @@ class ControlViewModel @Inject constructor(
                     }
                 }
         }
+
+        // Observe server-side connection status from SignalR
+        viewModelScope.launch {
+            repoImpl.serverConnectionStatus
+                .filterNotNull()
+                .collect { status ->
+                    Log.d("ControlVM", "📡 Server connection status update: plcId=${status.plcId}, state=${status.state}, isConnected=${status.isConnected}")
+
+                    // Check if this status is for our selected PLC
+                    val selectedPlcId = prefsManager.getSelectedPlcId()
+                    val selectedPlcName = prefsManager.getSelectedPlcName()
+
+                    if (status.plcId == selectedPlcId || status.plcName == selectedPlcName) {
+                        // Update connection state based on server status
+                        when {
+                            status.isConnected && _connectionState.value !is ConnectionState.Connected -> {
+                                Log.d("ControlVM", "🟢 Server reports PLC connected - syncing state")
+                                _connectionState.value = ConnectionState.Connected
+                            }
+                            !status.isConnected -> {
+                                val newState = when (status.state.lowercase()) {
+                                    "reconnecting", "connecting" -> {
+                                        Log.d("ControlVM", "🟡 Server reports PLC reconnecting")
+                                        ConnectionState.Connecting(connectionAttempts)
+                                    }
+                                    "error", "failed" -> {
+                                        Log.d("ControlVM", "🔴 Server reports PLC error: ${status.state}")
+                                        ConnectionState.Failed(status.state, connectionAttempts)
+                                    }
+                                    else -> {
+                                        Log.d("ControlVM", "⚪ Server reports PLC disconnected: ${status.state}")
+                                        ConnectionState.Failed("Disconnected", connectionAttempts)
+                                    }
+                                }
+                                if (_connectionState.value is ConnectionState.Connected) {
+                                    _connectionState.value = newState
+                                }
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     /**
