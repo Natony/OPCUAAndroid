@@ -341,56 +341,44 @@ class ButtonLockRules @Inject constructor(
      * Logic mặc định:
      * - Khóa TẤT CẢ nút khi Power OFF hoặc Status != 1
      * - Chỉ mở khóa khi Power ON VÀ Status = 1 (Đã sẵn sàng)
-     * - Khóa khi đang thực hiện (status 2-13)
+     * - Mỗi nút chỉ có 1 rule gộp nhiều điều kiện
      */
     private fun loadDefaultRules() {
         val defaults = mutableListOf<LockRule>()
 
+        // Tên nút cho description
+        val buttonNames = mapOf(
+            0 to "Tiến", 1 to "Lùi", 2 to "Nâng", 3 to "Hạ",
+            6 to "Xuất Pallet", 7 to "Nhập Pallet",
+            8 to "Stack A", 9 to "Stack B",
+            14 to "Count", 203 to "Nhập N Pallet",
+            204 to "Xuất N Pallet", 999 to "Send All"
+        )
+
         // Danh sách tất cả các nút điều khiển (trừ Emergency Stop và Reset)
         val allControlButtons = listOf(0, 1, 2, 3, 6, 7, 8, 9, 14, 203, 204, 999)
 
-        // Rule 1: Khóa TẤT CẢ nút khi Power (4) OFF
-        // Chỉ mở khóa khi Power ON
+        // Gộp thành 1 rule/nút: Khóa khi Power OFF HOẶC Status != 1
         allControlButtons.forEach { btnIndex ->
             defaults.add(LockRule(
                 targetButtonIndex = btnIndex,
-                conditions = listOf(Condition.BoolEquals(boolIndex = 4, expectedValue = false)),
+                conditions = listOf(
+                    Condition.BoolEquals(boolIndex = 4, expectedValue = false),
+                    Condition.IntNotEquals(intIndex = 0, notExpectedValue = 1)
+                ),
                 operator = LogicOperator.OR,
                 isEnabled = true,
-                description = "Khóa khi Power chưa bật"
+                description = "Khóa ${buttonNames[btnIndex] ?: "Nút $btnIndex"} khi Power OFF hoặc Status != 1"
             ))
         }
 
-        // Rule 2: Khóa TẤT CẢ nút khi Status != 1 (không sẵn sàng)
-        // Status 0: Chưa sẵn sàng
-        // Status 2-13: Đang thực hiện các chức năng
-        allControlButtons.forEach { btnIndex ->
-            defaults.add(LockRule(
-                targetButtonIndex = btnIndex,
-                conditions = listOf(Condition.IntNotEquals(intIndex = 0, notExpectedValue = 1)),
-                operator = LogicOperator.OR,
-                isEnabled = true,
-                description = "Khóa khi Status không sẵn sàng (!=1)"
-            ))
-        }
-
-        // Rule 3: Lock Power Off (4) when Emergency (10) is active
-        // Nghĩa là: Khi đang Emergency thì không được tắt Power
+        // Rule riêng cho Power khi Emergency đang kích hoạt
         defaults.add(LockRule(
             targetButtonIndex = 4,
             conditions = listOf(Condition.BoolEquals(boolIndex = 10, expectedValue = true)),
             operator = LogicOperator.OR,
             isEnabled = true,
-            description = "Khóa nút Power khi Emergency đang kích hoạt"
-        ))
-
-        // Rule 4: Lock Send All when Emergency is active
-        defaults.add(LockRule(
-            targetButtonIndex = 999,
-            conditions = listOf(Condition.BoolEquals(boolIndex = 10, expectedValue = true)),
-            operator = LogicOperator.OR,
-            isEnabled = true,
-            description = "Khóa Send All khi Emergency"
+            description = "Khóa Power khi Emergency"
         ))
 
         _rules.value = defaults
