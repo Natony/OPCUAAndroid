@@ -184,17 +184,23 @@ private fun ExemptButtonsDialog(
                 item {
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
                     Text(
-                        text = "Nút Manual",
+                        text = "Nút Manual (Di chuyển)",
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
-                // Manual buttons
-                items((0..3).toList()) { index ->
+                // Manual buttons với tên đúng
+                val manualButtons = listOf(
+                    0 to "Tiến (Forward)",
+                    1 to "Lùi (Reverse)",
+                    2 to "Nâng (Up)",
+                    3 to "Hạ (Down)"
+                )
+                items(manualButtons) { (index, name) ->
                     ButtonExemptionItem(
                         buttonIndex = index,
-                        buttonName = "Manual ${index + 1}",
+                        buttonName = name,
                         isExempt = index in currentRule.exemptButtons,
                         onToggle = { onToggleButton(index) }
                     )
@@ -203,24 +209,30 @@ private fun ExemptButtonsDialog(
                 item {
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
                     Text(
-                        text = "Nút Auto",
+                        text = "Nút Auto (Tự động)",
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
-                // Auto buttons
-                items((6..9).toList()) { index ->
+                // Auto buttons với tên đúng
+                val autoButtons = listOf(
+                    6 to "Xuất Pallet",
+                    7 to "Nhập Pallet",
+                    8 to "Stack A",
+                    9 to "Stack B"
+                )
+                items(autoButtons) { (index, name) ->
                     ButtonExemptionItem(
                         buttonIndex = index,
-                        buttonName = "Auto ${index - 5}",
+                        buttonName = name,
                         isExempt = index in currentRule.exemptButtons,
                         onToggle = { onToggleButton(index) }
                     )
                 }
 
                 // Int buttons
-                items(listOf(203 to "Pallets Out", 204 to "Pallets In")) { (index, name) ->
+                items(listOf(203 to "Nhập N Pallet", 204 to "Xuất N Pallet")) { (index, name) ->
                     ButtonExemptionItem(
                         buttonIndex = index,
                         buttonName = name,
@@ -276,21 +288,27 @@ private fun ButtonExemptionItem(
     }
 }
 
-// Helper function
+// Helper function - sử dụng tên đồng bộ với BUTTON_INDEX_TO_NAME
 private fun getButtonNames(buttonIndices: Set<Int>): String {
     return buttonIndices.sorted().joinToString(", ") { index ->
         when (index) {
+            0 -> "Tiến"
+            1 -> "Lùi"
+            2 -> "Nâng"
+            3 -> "Hạ"
             4 -> "Power"
             5 -> "Buzzer"
+            6 -> "Xuất Pallet"
+            7 -> "Nhập Pallet"
+            8 -> "Stack A"
+            9 -> "Stack B"
             10 -> "Emergency Stop"
             11 -> "FIFO/LIFO"
             13 -> "Direction"
             14 -> "Count"
+            203 -> "Nhập N Pallet"
+            204 -> "Xuất N Pallet"
             999 -> "Send All"
-            in 0..3 -> "Manual ${index + 1}"
-            in 6..9 -> "Auto ${index - 5}"
-            203 -> "Pallets Out"
-            204 -> "Pallets In"
             else -> "Button $index"
         }
     }
