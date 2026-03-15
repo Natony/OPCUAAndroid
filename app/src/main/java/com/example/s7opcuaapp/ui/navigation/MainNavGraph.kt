@@ -246,6 +246,13 @@ fun MainNavGraph(rootNavController: NavHostController) {
 
             composable("timeout_settings") {
                 com.example.s7opcuaapp.ui.screen.admin.TimeoutSettingsScreen(
+                    onBack = { topNavController.popBackStack() },
+                    onNavigateToButtonTimeouts = { topNavController.navigate("button_timeout_settings") }
+                )
+            }
+
+            composable("button_timeout_settings") {
+                com.example.s7opcuaapp.ui.screen.admin.ButtonTimeoutSettingsScreen(
                     onBack = { topNavController.popBackStack() }
                 )
             }

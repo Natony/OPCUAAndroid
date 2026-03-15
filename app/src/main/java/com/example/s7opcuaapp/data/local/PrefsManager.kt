@@ -46,6 +46,10 @@ class PrefsManager @Inject constructor(context: Context) {
         private const val DEFAULT_POLLING_INTERVAL = 500L    // 500ms
         private const val DEFAULT_BUTTON_RESPONSE_TIMEOUT = 3000L // 3 seconds
         private const val DEFAULT_BUTTON_DEBOUNCE_TIME = 300L    // 300ms
+        // Per-button timeout settings (legacy - global)
+        private const val KEY_BUTTON_TIMEOUTS = "button_timeouts_config"
+        // Per-device button timeout settings
+        private const val KEY_DEVICE_BUTTON_TIMEOUTS_PREFIX = "device_button_timeouts_"
     }
 
     fun saveSession(sessionId: String, userId: String, username: String, role: String) {
@@ -250,6 +254,122 @@ class PrefsManager @Inject constructor(context: Context) {
             .putLong(KEY_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
             .putLong(KEY_BUTTON_RESPONSE_TIMEOUT, DEFAULT_BUTTON_RESPONSE_TIMEOUT)
             .putLong(KEY_BUTTON_DEBOUNCE_TIME, DEFAULT_BUTTON_DEBOUNCE_TIME)
+            .remove(KEY_BUTTON_TIMEOUTS)
             .apply()
+    }
+
+    // Per-button timeout settings
+    data class ButtonTimeoutConfig(
+        val buttonIndex: Int,
+        val responseTimeout: Long = DEFAULT_BUTTON_RESPONSE_TIMEOUT,
+        val debounceTime: Long = DEFAULT_BUTTON_DEBOUNCE_TIME
+    )
+
+    fun saveButtonTimeouts(configs: Map<Int, ButtonTimeoutConfig>) {
+        val json = gson.toJson(configs)
+        prefs.edit()
+            .putString(KEY_BUTTON_TIMEOUTS, json)
+            .apply()
+    }
+
+    fun getButtonTimeouts(): Map<Int, ButtonTimeoutConfig> {
+        val json = prefs.getString(KEY_BUTTON_TIMEOUTS, null) ?: return emptyMap()
+        return try {
+            val type = object : com.google.gson.reflect.TypeToken<Map<Int, ButtonTimeoutConfig>>() {}.type
+            gson.fromJson(json, type) ?: emptyMap()
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    fun getButtonTimeout(buttonIndex: Int): ButtonTimeoutConfig {
+        val configs = getButtonTimeouts()
+        return configs[buttonIndex] ?: ButtonTimeoutConfig(
+            buttonIndex = buttonIndex,
+            responseTimeout = getButtonResponseTimeout(),
+            debounceTime = getButtonDebounceTime()
+        )
+    }
+
+    fun saveButtonTimeout(config: ButtonTimeoutConfig) {
+        val configs = getButtonTimeouts().toMutableMap()
+        configs[config.buttonIndex] = config
+        saveButtonTimeouts(configs)
+    }
+
+    // ==================== Per-Device Button Timeout Settings ====================
+
+    /**
+     * Get the key for storing button timeouts for a specific device
+     */
+    private fun getDeviceButtonTimeoutsKey(deviceId: String): String {
+        return "$KEY_DEVICE_BUTTON_TIMEOUTS_PREFIX$deviceId"
+    }
+
+    /**
+     * Save button timeouts for a specific device
+     */
+    fun saveDeviceButtonTimeouts(deviceId: String, configs: Map<Int, ButtonTimeoutConfig>) {
+        val json = gson.toJson(configs)
+        prefs.edit()
+            .putString(getDeviceButtonTimeoutsKey(deviceId), json)
+            .apply()
+    }
+
+    /**
+     * Get button timeouts for a specific device
+     * Falls back to global settings if no device-specific settings exist
+     */
+    fun getDeviceButtonTimeouts(deviceId: String): Map<Int, ButtonTimeoutConfig> {
+        val json = prefs.getString(getDeviceButtonTimeoutsKey(deviceId), null)
+        if (json == null) {
+            // No device-specific settings, return empty (will use global defaults)
+            return emptyMap()
+        }
+        return try {
+            val type = object : TypeToken<Map<Int, ButtonTimeoutConfig>>() {}.type
+            gson.fromJson(json, type) ?: emptyMap()
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    /**
+     * Get timeout for a specific button on a specific device
+     */
+    fun getDeviceButtonTimeout(deviceId: String, buttonIndex: Int): ButtonTimeoutConfig {
+        val configs = getDeviceButtonTimeouts(deviceId)
+        return configs[buttonIndex] ?: ButtonTimeoutConfig(
+            buttonIndex = buttonIndex,
+            responseTimeout = getButtonResponseTimeout(),
+            debounceTime = getButtonDebounceTime()
+        )
+    }
+
+    /**
+     * Save timeout for a specific button on a specific device
+     */
+    fun saveDeviceButtonTimeout(deviceId: String, config: ButtonTimeoutConfig) {
+        val configs = getDeviceButtonTimeouts(deviceId).toMutableMap()
+        configs[config.buttonIndex] = config
+        saveDeviceButtonTimeouts(deviceId, configs)
+    }
+
+    /**
+     * Reset all button timeouts for a specific device to global defaults
+     */
+    fun resetDeviceButtonTimeouts(deviceId: String) {
+        prefs.edit()
+            .remove(getDeviceButtonTimeoutsKey(deviceId))
+            .apply()
+    }
+
+    /**
+     * Get list of all device IDs that have custom button timeout settings
+     */
+    fun getDevicesWithCustomButtonTimeouts(): List<String> {
+        return prefs.all.keys
+            .filter { it.startsWith(KEY_DEVICE_BUTTON_TIMEOUTS_PREFIX) }
+            .map { it.removePrefix(KEY_DEVICE_BUTTON_TIMEOUTS_PREFIX) }
     }
 }
