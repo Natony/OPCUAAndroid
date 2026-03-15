@@ -28,7 +28,7 @@ class StatusLockConfig @Inject constructor(
         // 0: Chưa sẵn sàng (default/uninitialized)
         // 1: Đã sẵn sàng (ready - unlock buttons)
         // 2: Dừng khẩn cấp (emergency stop)
-        // 3-13: Đang thực hiện các chức năng (lock buttons)
+        // 3-16: Đang thực hiện các chức năng (lock buttons)
         val DEFAULT_STATUS_DESCRIPTIONS = mapOf(
             0 to "Chưa sẵn sàng",
             1 to "Đã sẵn sàng",
@@ -43,7 +43,10 @@ class StatusLockConfig @Inject constructor(
             10 to "Đang tiến",               // Nút Forward (bool[0])
             11 to "Đang lùi",                // Nút Reverse (bool[1])
             12 to "Đang nâng",               // Nút Up (bool[2])
-            13 to "Đang hạ"                  // Nút Down (bool[3])
+            13 to "Đang hạ",                 // Nút Down (bool[3])
+            14 to "Đang thực hiện chức năng 1",  // Function 1
+            15 to "Đang thực hiện chức năng 2",  // Function 2
+            16 to "Đang thực hiện chức năng 3"   // Function 3
         )
     }
 
@@ -81,7 +84,7 @@ class StatusLockConfig @Inject constructor(
                 isEnabled = true,
                 exemptButtons = setOf(5) // Chỉ cho Reset (5)
             )
-            in 3..5, 7, in 8..13 -> StatusLockRule(
+            in 3..5, 7, in 8..16 -> StatusLockRule(
                 statusValue = status,
                 description = description,
                 lockAllButtons = true, // Đang thực hiện - LOCK all
