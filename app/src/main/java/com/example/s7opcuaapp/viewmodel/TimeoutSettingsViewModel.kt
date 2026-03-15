@@ -9,9 +9,11 @@ import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
 data class TimeoutSettingsUiState(
-    val connectionTimeout: Long = 10000L,  // ms
-    val requestTimeout: Long = 5000L,       // ms
-    val pollingInterval: Long = 500L,       // ms
+    val connectionTimeout: Long = 10000L,      // ms
+    val requestTimeout: Long = 5000L,          // ms
+    val pollingInterval: Long = 500L,          // ms
+    val buttonResponseTimeout: Long = 3000L,   // ms
+    val buttonDebounceTime: Long = 300L,       // ms
     val isSaved: Boolean = false,
     val errorMessage: String? = null
 )
@@ -34,6 +36,8 @@ class TimeoutSettingsViewModel @Inject constructor(
                 connectionTimeout = prefsManager.getConnectionTimeout(),
                 requestTimeout = prefsManager.getRequestTimeout(),
                 pollingInterval = prefsManager.getPollingInterval(),
+                buttonResponseTimeout = prefsManager.getButtonResponseTimeout(),
+                buttonDebounceTime = prefsManager.getButtonDebounceTime(),
                 isSaved = false
             )
         }
@@ -63,12 +67,30 @@ class TimeoutSettingsViewModel @Inject constructor(
         }
     }
 
+    fun onButtonResponseTimeoutChange(value: Long) {
+        if (value in 1000..10000) { // 1s to 10s
+            _uiState.update { it.copy(buttonResponseTimeout = value, isSaved = false, errorMessage = null) }
+        } else {
+            _uiState.update { it.copy(errorMessage = "Button response timeout must be between 1-10 seconds") }
+        }
+    }
+
+    fun onButtonDebounceTimeChange(value: Long) {
+        if (value in 100..2000) { // 100ms to 2s
+            _uiState.update { it.copy(buttonDebounceTime = value, isSaved = false, errorMessage = null) }
+        } else {
+            _uiState.update { it.copy(errorMessage = "Button debounce time must be between 100-2000ms") }
+        }
+    }
+
     fun saveSettings() {
         val state = _uiState.value
         prefsManager.saveTimeoutSettings(
             connectionTimeout = state.connectionTimeout,
             requestTimeout = state.requestTimeout,
-            pollingInterval = state.pollingInterval
+            pollingInterval = state.pollingInterval,
+            buttonResponseTimeout = state.buttonResponseTimeout,
+            buttonDebounceTime = state.buttonDebounceTime
         )
         _uiState.update { it.copy(isSaved = true, errorMessage = null) }
     }

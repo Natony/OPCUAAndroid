@@ -131,6 +131,38 @@ fun TimeoutSettingsScreen(
                 onValueChange = { viewModel.onPollingIntervalChange(it) }
             )
 
+            // Section header for button settings
+            Text(
+                text = "Button Control Settings",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            // Button Response Timeout
+            TimeoutSettingCard(
+                title = "Button Response Timeout",
+                description = "Maximum time to wait for button action confirmation (1-10 seconds)",
+                value = uiState.buttonResponseTimeout,
+                minValue = 1000,
+                maxValue = 10000,
+                step = 500,
+                unit = "ms",
+                onValueChange = { viewModel.onButtonResponseTimeoutChange(it) }
+            )
+
+            // Button Debounce Time
+            TimeoutSettingCard(
+                title = "Button Debounce Time",
+                description = "Minimum time between button presses to prevent double-tap (100-2000ms)",
+                value = uiState.buttonDebounceTime,
+                minValue = 100,
+                maxValue = 2000,
+                step = 100,
+                unit = "ms",
+                onValueChange = { viewModel.onButtonDebounceTimeChange(it) }
+            )
+
             // Save button
             Button(
                 onClick = { viewModel.saveSettings() },

@@ -39,9 +39,13 @@ class PrefsManager @Inject constructor(context: Context) {
         private const val KEY_CONNECTION_TIMEOUT = "connection_timeout"
         private const val KEY_REQUEST_TIMEOUT = "request_timeout"
         private const val KEY_POLLING_INTERVAL = "polling_interval"
+        private const val KEY_BUTTON_RESPONSE_TIMEOUT = "button_response_timeout"
+        private const val KEY_BUTTON_DEBOUNCE_TIME = "button_debounce_time"
         private const val DEFAULT_CONNECTION_TIMEOUT = 10000L // 10 seconds
         private const val DEFAULT_REQUEST_TIMEOUT = 5000L    // 5 seconds
         private const val DEFAULT_POLLING_INTERVAL = 500L    // 500ms
+        private const val DEFAULT_BUTTON_RESPONSE_TIMEOUT = 3000L // 3 seconds
+        private const val DEFAULT_BUTTON_DEBOUNCE_TIME = 300L    // 300ms
     }
 
     fun saveSession(sessionId: String, userId: String, username: String, role: String) {
@@ -203,11 +207,19 @@ class PrefsManager @Inject constructor(context: Context) {
     }
 
     // Response timeout settings
-    fun saveTimeoutSettings(connectionTimeout: Long, requestTimeout: Long, pollingInterval: Long) {
+    fun saveTimeoutSettings(
+        connectionTimeout: Long,
+        requestTimeout: Long,
+        pollingInterval: Long,
+        buttonResponseTimeout: Long,
+        buttonDebounceTime: Long
+    ) {
         prefs.edit()
             .putLong(KEY_CONNECTION_TIMEOUT, connectionTimeout)
             .putLong(KEY_REQUEST_TIMEOUT, requestTimeout)
             .putLong(KEY_POLLING_INTERVAL, pollingInterval)
+            .putLong(KEY_BUTTON_RESPONSE_TIMEOUT, buttonResponseTimeout)
+            .putLong(KEY_BUTTON_DEBOUNCE_TIME, buttonDebounceTime)
             .apply()
     }
 
@@ -223,11 +235,21 @@ class PrefsManager @Inject constructor(context: Context) {
         return prefs.getLong(KEY_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
     }
 
+    fun getButtonResponseTimeout(): Long {
+        return prefs.getLong(KEY_BUTTON_RESPONSE_TIMEOUT, DEFAULT_BUTTON_RESPONSE_TIMEOUT)
+    }
+
+    fun getButtonDebounceTime(): Long {
+        return prefs.getLong(KEY_BUTTON_DEBOUNCE_TIME, DEFAULT_BUTTON_DEBOUNCE_TIME)
+    }
+
     fun resetTimeoutSettings() {
         prefs.edit()
             .putLong(KEY_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT)
             .putLong(KEY_REQUEST_TIMEOUT, DEFAULT_REQUEST_TIMEOUT)
             .putLong(KEY_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
+            .putLong(KEY_BUTTON_RESPONSE_TIMEOUT, DEFAULT_BUTTON_RESPONSE_TIMEOUT)
+            .putLong(KEY_BUTTON_DEBOUNCE_TIME, DEFAULT_BUTTON_DEBOUNCE_TIME)
             .apply()
     }
 }
