@@ -244,6 +244,12 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 )
             }
 
+            composable("timeout_settings") {
+                com.example.s7opcuaapp.ui.screen.admin.TimeoutSettingsScreen(
+                    onBack = { topNavController.popBackStack() }
+                )
+            }
+
             composable("config_btm") {
                 val configViewModel: ConfigViewModel = hiltViewModel()
                 val uiState by configViewModel.uiState.collectAsStateWithLifecycle()

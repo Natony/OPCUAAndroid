@@ -35,6 +35,13 @@ class PrefsManager @Inject constructor(context: Context) {
         // Button lock rules
         private const val KEY_BUTTON_LOCK_RULES = "button_lock_rules_v2"
         private const val KEY_BUTTON_LOCK_RULES_OVERRIDE = "button_lock_rules_override"
+        // Response timeout settings (in milliseconds)
+        private const val KEY_CONNECTION_TIMEOUT = "connection_timeout"
+        private const val KEY_REQUEST_TIMEOUT = "request_timeout"
+        private const val KEY_POLLING_INTERVAL = "polling_interval"
+        private const val DEFAULT_CONNECTION_TIMEOUT = 10000L // 10 seconds
+        private const val DEFAULT_REQUEST_TIMEOUT = 5000L    // 5 seconds
+        private const val DEFAULT_POLLING_INTERVAL = 500L    // 500ms
     }
 
     fun saveSession(sessionId: String, userId: String, username: String, role: String) {
@@ -193,5 +200,34 @@ class PrefsManager @Inject constructor(context: Context) {
 
     fun getButtonLockRulesOverride(): Boolean {
         return prefs.getBoolean(KEY_BUTTON_LOCK_RULES_OVERRIDE, false)
+    }
+
+    // Response timeout settings
+    fun saveTimeoutSettings(connectionTimeout: Long, requestTimeout: Long, pollingInterval: Long) {
+        prefs.edit()
+            .putLong(KEY_CONNECTION_TIMEOUT, connectionTimeout)
+            .putLong(KEY_REQUEST_TIMEOUT, requestTimeout)
+            .putLong(KEY_POLLING_INTERVAL, pollingInterval)
+            .apply()
+    }
+
+    fun getConnectionTimeout(): Long {
+        return prefs.getLong(KEY_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT)
+    }
+
+    fun getRequestTimeout(): Long {
+        return prefs.getLong(KEY_REQUEST_TIMEOUT, DEFAULT_REQUEST_TIMEOUT)
+    }
+
+    fun getPollingInterval(): Long {
+        return prefs.getLong(KEY_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
+    }
+
+    fun resetTimeoutSettings() {
+        prefs.edit()
+            .putLong(KEY_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT)
+            .putLong(KEY_REQUEST_TIMEOUT, DEFAULT_REQUEST_TIMEOUT)
+            .putLong(KEY_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
+            .apply()
     }
 }

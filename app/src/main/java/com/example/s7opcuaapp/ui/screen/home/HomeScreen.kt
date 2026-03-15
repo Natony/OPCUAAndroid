@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -112,28 +113,33 @@ fun HomeScreen(
                         navController?.navigate("login_history")
                     }
                 )
-
             }
-        }
 
-        // THÊM DÒNG NÀY
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            MenuCard(
-                title = "Button Lock Settings",
-                description = "Configure button locking rules",
-                icon = Icons.Default.Lock,
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    navController?.navigate("status_lock_config")
-                }
-            )
+            // Admin Settings Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                MenuCard(
+                    title = "Button Lock Settings",
+                    description = "Configure button locking rules",
+                    icon = Icons.Default.Lock,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        navController?.navigate("status_lock_config")
+                    }
+                )
 
-            // Có thể thêm card khác nếu cần
-            Spacer(modifier = Modifier.weight(1f))
-
+                MenuCard(
+                    title = "Timeout Settings",
+                    description = "Configure response timeouts",
+                    icon = Icons.Default.Timer,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        navController?.navigate("timeout_settings")
+                    }
+                )
+            }
         }
 
         // System Info
