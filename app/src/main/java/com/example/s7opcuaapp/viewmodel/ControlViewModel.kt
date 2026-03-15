@@ -816,6 +816,9 @@ class ControlViewModel @Inject constructor(
         // Lấy active buttons từ PLC data
         val activeButtons = getActiveButtons(data)
 
+        // Lấy status value từ PLC data (ints[0])
+        val statusValue = data.ints.getOrNull(0) ?: 0
+
         // Tính toán locked buttons
         val lockedButtons = if (currentProcessingButton != null) {
             // Nếu đang xử lý, khóa tất cả nút trừ nút đang xử lý
@@ -824,13 +827,17 @@ class ControlViewModel @Inject constructor(
                 allButtons - it
             } ?: allButtons
         } else {
-            // SỬ DỤNG BUTTON LOCK RULES (đánh giá dựa trên bool/int conditions)
-            buttonLockRules.getLockedButtons(data)
+            // Kết hợp cả buttonLockRules VÀ statusLockConfig
+            val ruleBasedLocks = buttonLockRules.getLockedButtons(data)
+            val statusBasedLocks = statusLockConfig.getLockedButtonsForStatus(statusValue)
+
+            // Union của cả 2 loại lock
+            ruleBasedLocks + statusBasedLocks
         }
 
         // Debug logging for button lock rules
         if (lockedButtons.isNotEmpty()) {
-            Log.d("ControlVM", "📋 Locked buttons by rules: ${lockedButtons.size} buttons: $lockedButtons")
+            Log.d("ControlVM", "📋 Locked buttons (status=$statusValue): ${lockedButtons.size} buttons: $lockedButtons")
         }
 
         _uiState.update {
