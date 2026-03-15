@@ -28,7 +28,7 @@ class StatusLockConfig @Inject constructor(
         // 0: Chưa sẵn sàng (default/uninitialized)
         // 1: Đã sẵn sàng (ready - unlock buttons)
         // 2: Dừng khẩn cấp (emergency stop)
-        // 3-16: Đang thực hiện các chức năng (lock buttons)
+        // 3-15: Đang thực hiện các chức năng (lock buttons)
         val DEFAULT_STATUS_DESCRIPTIONS = mapOf(
             0 to "Chưa sẵn sàng",
             1 to "Đã sẵn sàng",
@@ -36,17 +36,16 @@ class StatusLockConfig @Inject constructor(
             3 to "Đang nhập n pallet",       // Nút Pallets Plus (int[3])
             4 to "Đang xuất n pallet",       // Nút Pallets Minus (int[4])
             5 to "Đang nhập pallet",         // Nút Pallet Plus (bool[7])
-            // Note: Status 6 không sử dụng
-            7 to "Đang xuất pallet",         // Nút Pallet Minus (bool[6])
-            8 to "Đang Stack A",             // Nút Stack A (bool[8])
-            9 to "Đang Stack B",             // Nút Stack B (bool[9])
-            10 to "Đang tiến",               // Nút Forward (bool[0])
-            11 to "Đang lùi",                // Nút Reverse (bool[1])
-            12 to "Đang nâng",               // Nút Up (bool[2])
-            13 to "Đang hạ",                 // Nút Down (bool[3])
-            14 to "Đang thực hiện chức năng 1",  // Function 1
-            15 to "Đang thực hiện chức năng 2",  // Function 2
-            16 to "Đang thực hiện chức năng 3"   // Function 3
+            6 to "Đang xuất pallet",         // Nút Pallet Minus (bool[6])
+            7 to "Đang Stack A",             // Nút Stack A (bool[8])
+            8 to "Đang Stack B",             // Nút Stack B (bool[9])
+            9 to "Đang tiến",                // Nút Forward (bool[0])
+            10 to "Đang lùi",                // Nút Reverse (bool[1])
+            11 to "Đang nâng",               // Nút Up (bool[2])
+            12 to "Đang hạ",                 // Nút Down (bool[3])
+            13 to "Đang thực hiện chức năng 1",  // Function 1
+            14 to "Đang thực hiện chức năng 2",  // Function 2
+            15 to "Đang thực hiện chức năng 3"   // Function 3
         )
 
         // Mapping từ status value sang button index
@@ -55,13 +54,13 @@ class StatusLockConfig @Inject constructor(
             3 to 203,   // Đang nhập n pallet -> Pallets Plus (int[3] + 200)
             4 to 204,   // Đang xuất n pallet -> Pallets Minus (int[4] + 200)
             5 to 7,     // Đang nhập pallet -> Pallet Plus (bool[7])
-            7 to 6,     // Đang xuất pallet -> Pallet Minus (bool[6])
-            8 to 8,     // Đang Stack A -> Stack A (bool[8])
-            9 to 9,     // Đang Stack B -> Stack B (bool[9])
-            10 to 0,    // Đang tiến -> Forward (bool[0])
-            11 to 1,    // Đang lùi -> Reverse (bool[1])
-            12 to 2,    // Đang nâng -> Up (bool[2])
-            13 to 3     // Đang hạ -> Down (bool[3])
+            6 to 6,     // Đang xuất pallet -> Pallet Minus (bool[6])
+            7 to 8,     // Đang Stack A -> Stack A (bool[8])
+            8 to 9,     // Đang Stack B -> Stack B (bool[9])
+            9 to 0,     // Đang tiến -> Forward (bool[0])
+            10 to 1,    // Đang lùi -> Reverse (bool[1])
+            11 to 2,    // Đang nâng -> Up (bool[2])
+            12 to 3     // Đang hạ -> Down (bool[3])
         )
 
         // Mapping từ button index sang tên nút (cho dialog xác nhận hủy)
@@ -113,7 +112,7 @@ class StatusLockConfig @Inject constructor(
                 isEnabled = true,
                 exemptButtons = setOf(5) // Chỉ cho Reset (5)
             )
-            in 3..5, 7, in 8..16 -> StatusLockRule(
+            in 3..15 -> StatusLockRule(
                 statusValue = status,
                 description = description,
                 lockAllButtons = true, // Đang thực hiện - LOCK all

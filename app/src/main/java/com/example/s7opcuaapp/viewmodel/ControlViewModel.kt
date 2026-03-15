@@ -1070,6 +1070,7 @@ class ControlViewModel @Inject constructor(
 
     /**
      * THREAD-SAFE: Toggle boolean with proper locking
+     * Auto buttons (6, 7, 8, 9) sử dụng hàm này
      */
     fun onToggleBoolean(index: Int, newValue: Boolean) {
         // Check if in offline mode
@@ -1091,6 +1092,26 @@ class ControlViewModel @Inject constructor(
         // Check if connected first
         if (!connectionStarted || _uiState.value.loadingPercent != 100) {
             Log.w("ControlVM", "Cannot toggle boolean - not connected")
+            return
+        }
+
+        // Kiểm tra nếu đang tắt nút (newValue = false) thì hiện dialog xác nhận
+        // Tương tự như manual buttons
+        val currentPlcData = _uiState.value.plcData
+        val isButtonCurrentlyActive = currentPlcData.bools.getOrNull(index) == true
+
+        if (isButtonCurrentlyActive && !newValue) {
+            // Đang muốn hủy chức năng -> hiện dialog xác nhận
+            val buttonName = StatusLockConfig.BUTTON_INDEX_TO_NAME[index] ?: "Nút $index"
+            Log.d("ControlVM", "🔔 Auto button $index is active, showing cancel confirmation dialog")
+            _uiState.update {
+                it.copy(
+                    cancelConfirmDialog = CancelConfirmDialog(
+                        buttonIndex = index,
+                        buttonName = buttonName
+                    )
+                )
+            }
             return
         }
 
