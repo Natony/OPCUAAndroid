@@ -41,7 +41,9 @@ fun ControlScreen(
     onDismissTimeoutDialog: () -> Unit = {},
     onContinueOffline: () -> Unit,
     onAcquireLock: () -> Unit = {},
-    onReleaseLock: () -> Unit = {}
+    onReleaseLock: () -> Unit = {},
+    onConfirmCancelFunction: () -> Unit = {},
+    onDismissCancelDialog: () -> Unit = {}
 ) {
     val data = uiState.plcData
     var isAuto by remember { mutableStateOf(true) }
@@ -275,6 +277,48 @@ fun ControlScreen(
                         }
                     ) {
                         Text("Continue Offline")
+                    }
+                }
+            )
+        }
+
+        // Cancel confirmation dialog - hiện khi nhấn lại nút đang active
+        uiState.cancelConfirmDialog?.let { dialog ->
+            AlertDialog(
+                onDismissRequest = onDismissCancelDialog,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(48.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        "Xác nhận hủy",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                },
+                text = {
+                    Text(
+                        "Bạn có muốn hủy chức năng \"${dialog.buttonName}\" đang thực hiện không?",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = onConfirmCancelFunction,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Hủy chức năng")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissCancelDialog) {
+                        Text("Không")
                     }
                 }
             )

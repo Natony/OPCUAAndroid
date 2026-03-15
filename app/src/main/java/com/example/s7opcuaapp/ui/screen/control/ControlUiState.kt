@@ -14,5 +14,15 @@ data class ControlUiState(
     val lockedButtons: Set<Int> = emptySet(),
     val busyButtons: Set<Int> = emptySet(),
     val isProcessing: Boolean = false,
-    val controlsBlockedByAlarm: Boolean = false
+    val controlsBlockedByAlarm: Boolean = false,
+    // Dialog xác nhận hủy chức năng (khi nhấn lại nút đang active)
+    val cancelConfirmDialog: CancelConfirmDialog? = null
+)
+
+/**
+ * Data class cho dialog xác nhận hủy chức năng
+ */
+data class CancelConfirmDialog(
+    val buttonIndex: Int,
+    val buttonName: String
 )

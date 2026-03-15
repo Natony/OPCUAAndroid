@@ -218,6 +218,12 @@ fun MainNavGraph(rootNavController: NavHostController) {
                     },
                     onReleaseLock = {
                         controlViewModel.releaseLock()
+                    },
+                    onConfirmCancelFunction = {
+                        controlViewModel.onConfirmCancelFunction()
+                    },
+                    onDismissCancelDialog = {
+                        controlViewModel.onDismissCancelDialog()
                     }
                 )
             }

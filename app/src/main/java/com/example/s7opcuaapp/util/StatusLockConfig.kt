@@ -48,6 +48,35 @@ class StatusLockConfig @Inject constructor(
             15 to "Đang thực hiện chức năng 2",  // Function 2
             16 to "Đang thực hiện chức năng 3"   // Function 3
         )
+
+        // Mapping từ status value sang button index
+        // Khi đang ở status này, nút tương ứng sẽ KHÔNG bị khóa (để có thể hủy)
+        val STATUS_TO_BUTTON_INDEX = mapOf(
+            3 to 203,   // Đang nhập n pallet -> Pallets Plus (int[3] + 200)
+            4 to 204,   // Đang xuất n pallet -> Pallets Minus (int[4] + 200)
+            5 to 7,     // Đang nhập pallet -> Pallet Plus (bool[7])
+            7 to 6,     // Đang xuất pallet -> Pallet Minus (bool[6])
+            8 to 8,     // Đang Stack A -> Stack A (bool[8])
+            9 to 9,     // Đang Stack B -> Stack B (bool[9])
+            10 to 0,    // Đang tiến -> Forward (bool[0])
+            11 to 1,    // Đang lùi -> Reverse (bool[1])
+            12 to 2,    // Đang nâng -> Up (bool[2])
+            13 to 3     // Đang hạ -> Down (bool[3])
+        )
+
+        // Mapping từ button index sang tên nút (cho dialog xác nhận hủy)
+        val BUTTON_INDEX_TO_NAME = mapOf(
+            0 to "Tiến (Forward)",
+            1 to "Lùi (Reverse)",
+            2 to "Nâng (Up)",
+            3 to "Hạ (Down)",
+            6 to "Xuất Pallet",
+            7 to "Nhập Pallet",
+            8 to "Stack A",
+            9 to "Stack B",
+            203 to "Nhập N Pallet",
+            204 to "Xuất N Pallet"
+        )
     }
 
     data class StatusLockRule(
@@ -141,8 +170,17 @@ class StatusLockConfig @Inject constructor(
                     (203..204).toSet() + // Int buttons 3,4 with offset
                     setOf(SEND_ALL_BUTTON_INDEX)
 
-            // Remove exempt buttons
-            allButtons - rule.exemptButtons
+            // Lấy nút tương ứng với status hiện tại (để không khóa nút đó)
+            val currentStatusButton = STATUS_TO_BUTTON_INDEX[statusValue]
+
+            // Remove exempt buttons VÀ nút đang thực hiện (để có thể hủy)
+            val exemptSet = if (currentStatusButton != null) {
+                rule.exemptButtons + currentStatusButton
+            } else {
+                rule.exemptButtons
+            }
+
+            allButtons - exemptSet
         } else {
             // No locks for this status
             emptySet()

@@ -11,6 +11,7 @@ import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.PlcData
 import com.example.s7opcuaapp.data.repository.ApiRepositoryImpl
 import com.example.s7opcuaapp.data.repository.S7Repository
+import com.example.s7opcuaapp.ui.screen.control.CancelConfirmDialog
 import com.example.s7opcuaapp.ui.screen.control.ControlUiState
 import com.example.s7opcuaapp.util.ButtonLockConfig
 import com.example.s7opcuaapp.util.ButtonLockRules
@@ -1164,6 +1165,33 @@ class ControlViewModel @Inject constructor(
             return
         }
 
+        // Kiểm tra nếu nút đang active (value = true trong PLC data) thì hiện dialog xác nhận
+        val currentPlcData = _uiState.value.plcData
+        val isButtonCurrentlyActive = when {
+            index in 0..13 -> currentPlcData.bools.getOrNull(index) == true
+            index >= 200 -> {
+                // Int buttons: check if int value > 0
+                val intIndex = index - 200
+                (currentPlcData.ints.getOrNull(intIndex) ?: 0) > 0
+            }
+            else -> false
+        }
+
+        if (isButtonCurrentlyActive) {
+            // Hiện dialog xác nhận hủy
+            val buttonName = StatusLockConfig.BUTTON_INDEX_TO_NAME[index] ?: "Nút $index"
+            Log.d("ControlVM", "🔔 Button $index is active, showing cancel confirmation dialog")
+            _uiState.update {
+                it.copy(
+                    cancelConfirmDialog = CancelConfirmDialog(
+                        buttonIndex = index,
+                        buttonName = buttonName
+                    )
+                )
+            }
+            return
+        }
+
         viewModelScope.launch {
             val success = buttonOperationMutex.withLock {
                 performButtonPress(index)
@@ -1173,6 +1201,43 @@ class ControlViewModel @Inject constructor(
                 Log.w("ControlVM", "Button $index press rejected")
             }
         }
+    }
+
+    /**
+     * Xác nhận hủy chức năng - ghi false vào PLC
+     */
+    fun onConfirmCancelFunction() {
+        val dialog = _uiState.value.cancelConfirmDialog ?: return
+        val index = dialog.buttonIndex
+
+        Log.d("ControlVM", "✅ User confirmed cancel for button $index")
+
+        // Đóng dialog
+        _uiState.update { it.copy(cancelConfirmDialog = null) }
+
+        // Ghi false vào PLC để hủy chức năng
+        viewModelScope.launch {
+            try {
+                if (index in 0..13) {
+                    repoImpl.writeBoolean(index, false)
+                    Log.d("ControlVM", "✅ Cancelled function: wrote false to bool[$index]")
+                } else if (index >= 200) {
+                    val intIndex = index - 200
+                    repoImpl.writeInt(intIndex, 0)
+                    Log.d("ControlVM", "✅ Cancelled function: wrote 0 to int[$intIndex]")
+                }
+            } catch (e: Exception) {
+                Log.e("ControlVM", "❌ Failed to cancel function for button $index", e)
+            }
+        }
+    }
+
+    /**
+     * Hủy dialog xác nhận (không hủy chức năng)
+     */
+    fun onDismissCancelDialog() {
+        Log.d("ControlVM", "❌ User dismissed cancel confirmation dialog")
+        _uiState.update { it.copy(cancelConfirmDialog = null) }
     }
 
     /**
