@@ -20,6 +20,11 @@ class PrefsManager @Inject constructor(context: Context) {
         private const val KEY_USER_ROLE         = "user_role"
         private const val KEY_REMEMBER_ME       = "remember_me"
         private const val KEY_CREDS             = "saved_credentials"
+        // Single-session auth
+        private const val KEY_DEVICE_ID         = "device_id"           // Unique device identifier
+        private const val KEY_DEVICE_NAME       = "device_name"         // Display name for this device
+        private const val KEY_REFRESH_TOKEN     = "refresh_token"       // For logout and token refresh
+        private const val KEY_ACCESS_TOKEN      = "access_token"        // JWT access token
         private const val KEY_DEVICES_JSON      = "device_list"
         private const val KEY_CURRENT_DEVICE_ID = "current_device_id"
         private const val KEY_STATUS_LOCK_CONFIG = "status_lock_config"
@@ -74,6 +79,79 @@ class PrefsManager @Inject constructor(context: Context) {
     fun getUserId(): String? = prefs.getString(KEY_USER_ID, null)
     fun getUsername(): String? = prefs.getString(KEY_USERNAME, null)
     fun getUserRole(): String? = prefs.getString(KEY_USER_ROLE, null)
+
+    // ============== Single-Session Auth Methods ==============
+
+    /**
+     * Get or generate unique device ID
+     * Uses Android ID as base, persists for consistency
+     */
+    fun getDeviceId(context: Context): String {
+        var deviceId = prefs.getString(KEY_DEVICE_ID, null)
+        if (deviceId == null) {
+            // Generate unique device ID based on Android ID + random suffix
+            val androidId = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+            deviceId = "$androidId-${System.currentTimeMillis()}"
+            prefs.edit().putString(KEY_DEVICE_ID, deviceId).apply()
+            android.util.Log.d("PrefsManager", "🆔 Generated new device ID: $deviceId")
+        }
+        return deviceId
+    }
+
+    /**
+     * Get device name (display name)
+     */
+    fun getDeviceName(): String {
+        return prefs.getString(KEY_DEVICE_NAME, null)
+            ?: "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
+    }
+
+    /**
+     * Set device name
+     */
+    fun setDeviceName(name: String) {
+        prefs.edit().putString(KEY_DEVICE_NAME, name).apply()
+    }
+
+    /**
+     * Save tokens from login response
+     */
+    fun saveTokens(accessToken: String, refreshToken: String) {
+        prefs.edit()
+            .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_REFRESH_TOKEN, refreshToken)
+            .apply()
+    }
+
+    /**
+     * Get access token
+     */
+    fun getAccessToken(): String? = prefs.getString(KEY_ACCESS_TOKEN, null)
+
+    /**
+     * Get refresh token
+     */
+    fun getRefreshToken(): String? = prefs.getString(KEY_REFRESH_TOKEN, null)
+
+    /**
+     * Clear tokens (on logout)
+     */
+    fun clearTokens() {
+        prefs.edit()
+            .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
+            .apply()
+    }
+
+    /**
+     * Check if user is logged in (has valid session)
+     */
+    fun isLoggedIn(): Boolean {
+        return getSessionId() != null && getAccessToken() != null
+    }
 
     fun setRememberMe(remember: Boolean) {
         prefs.edit().putBoolean(KEY_REMEMBER_ME, remember).apply()

@@ -94,10 +94,30 @@ interface PlcApiService {
     // ============== Auth Endpoints ==============
 
     /**
-     * Login with username and password
+     * Login with username, password, deviceId (Single-Session)
      */
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
+    /**
+     * Validate session - check if session is still valid
+     * Call when app resumes from background or every 1-2 minutes
+     */
+    @POST("api/auth/validate-session")
+    suspend fun validateSession(@Body request: ValidateSessionRequest): Response<ValidateSessionResponse>
+
+    /**
+     * Heartbeat - keep session alive
+     * Call every 30-60 seconds while app is active
+     */
+    @POST("api/auth/heartbeat")
+    suspend fun heartbeat(@Body request: HeartbeatRequest): Response<HeartbeatResponse>
+
+    /**
+     * Get current session info
+     */
+    @GET("api/auth/session")
+    suspend fun getSessionInfo(): Response<SessionInfoResponse>
 
     /**
      * Refresh access token
@@ -106,10 +126,10 @@ interface PlcApiService {
     suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<LoginResponse>
 
     /**
-     * Logout (invalidate refresh token)
+     * Logout (requires refreshToken in body)
      */
     @POST("api/auth/logout")
-    suspend fun logout(): Response<ApiResponse<Boolean>>
+    suspend fun logout(@Body request: LogoutRequest): Response<ApiResponse<Boolean>>
 
     /**
      * Get current user info

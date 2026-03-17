@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.auth.AuthManager
+import com.example.s7opcuaapp.data.auth.HeartbeatManager
 import com.example.s7opcuaapp.ui.navigation.RootNavHost
 import com.example.s7opcuaapp.ui.theme.S7Theme
 import com.example.s7opcuaapp.util.PerformanceMonitor
@@ -30,6 +31,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var authManager: AuthManager
+
+    @Inject
+    lateinit var heartbeatManager: HeartbeatManager
 
     @Inject
     lateinit var performanceMonitor: PerformanceMonitor
@@ -71,6 +75,24 @@ class MainActivity : ComponentActivity() {
 
                 RootNavHost(navController = navController)
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Validate session when app resumes from background
+        if (authManager.isAuthenticated() && !authManager.isDemoMode()) {
+            Log.d(TAG, "🔍 App resumed, validating session...")
+            heartbeatManager.validateSessionOnResume()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop heartbeat when app goes to background
+        if (authManager.isAuthenticated() && !authManager.isDemoMode()) {
+            Log.d(TAG, "💤 App paused, stopping heartbeat...")
+            heartbeatManager.stopHeartbeat()
         }
     }
 

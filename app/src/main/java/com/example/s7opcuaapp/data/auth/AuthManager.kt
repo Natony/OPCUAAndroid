@@ -34,6 +34,8 @@ class AuthManager @Inject constructor(
         private const val KEY_ROLE = "role"
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_IS_DEMO_MODE = "is_demo_mode"
+        // Single-Session keys
+        private const val KEY_SESSION_ID = "session_id"
 
         // Refresh token 1 minute before expiry
         private const val TOKEN_REFRESH_THRESHOLD_SECONDS = 60
@@ -89,6 +91,7 @@ class AuthManager @Inject constructor(
         object NotAuthenticated : AuthState()
         data class Authenticated(val user: UserDto) : AuthState()
         object TokenExpired : AuthState()
+        data class SessionInvalidated(val reason: String, val newDeviceName: String?) : AuthState()
     }
 
     /**
@@ -136,7 +139,7 @@ class AuthManager @Inject constructor(
     }
 
     /**
-     * Save login response
+     * Save login response (includes sessionId for Single-Session)
      */
     suspend fun saveLoginResponse(response: LoginResponse) = tokenMutex.withLock {
         if (response.success && response.accessToken != null && response.user != null) {
@@ -144,6 +147,7 @@ class AuthManager @Inject constructor(
                 putString(KEY_ACCESS_TOKEN, response.accessToken)
                 putString(KEY_REFRESH_TOKEN, response.refreshToken)
                 putString(KEY_EXPIRES_AT, response.expiresAt)
+                putString(KEY_SESSION_ID, response.sessionId)  // Save sessionId for heartbeat/validate
                 putString(KEY_USER_ID, response.user.id)
                 putString(KEY_USERNAME, response.user.username)
                 putString(KEY_ROLE, response.user.role.name)
@@ -154,8 +158,15 @@ class AuthManager @Inject constructor(
             _currentUser.value = response.user
             _authState.value = AuthState.Authenticated(response.user)
 
-            Log.d(TAG, "Saved login for user: ${response.user.username}")
+            Log.d(TAG, "Saved login for user: ${response.user.username}, sessionId: ${response.sessionId}")
         }
+    }
+
+    /**
+     * Get session ID for heartbeat/validate-session
+     */
+    fun getSessionId(): String? {
+        return prefs.getString(KEY_SESSION_ID, null)
     }
 
     /**
@@ -249,6 +260,16 @@ class AuthManager @Inject constructor(
         _authState.value = AuthState.NotAuthenticated
         _currentUser.value = null
         Log.d(TAG, "Auth cleared (logout)")
+    }
+
+    /**
+     * Handle session invalidation (kicked by another device)
+     */
+    suspend fun handleSessionInvalidated(reason: String, newDeviceName: String?) = tokenMutex.withLock {
+        Log.w(TAG, "⚠️ Session invalidated: reason=$reason, newDevice=$newDeviceName")
+        prefs.edit().clear().apply()
+        _authState.value = AuthState.SessionInvalidated(reason, newDeviceName)
+        _currentUser.value = null
     }
 
     /**

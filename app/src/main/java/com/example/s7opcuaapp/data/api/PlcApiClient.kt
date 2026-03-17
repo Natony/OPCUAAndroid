@@ -435,16 +435,29 @@ class PlcApiClient(
         scope.cancel()
     }
 
-    // ============== Auth Methods ==============
+    // ============== Auth Methods (Single-Session) ==============
 
     /**
-     * Login with username and password
+     * Login with username, password, and device info
+     * @param deviceId Unique device identifier (required for single-session)
+     * @param deviceName Optional display name for this device
      */
-    suspend fun login(username: String, password: String): LoginResponse? = withContext(Dispatchers.IO) {
+    suspend fun login(
+        username: String,
+        password: String,
+        deviceId: String,
+        deviceName: String? = null
+    ): LoginResponse? = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.login(LoginRequest(username, password))
+            Log.d(TAG, "🔐 Login attempt: user=$username, deviceId=$deviceId, deviceName=$deviceName")
+            val response = apiService.login(LoginRequest(username, password, deviceId, deviceName))
             if (response.isSuccessful) {
-                response.body()
+                val body = response.body()
+                if (body?.previousSessionTerminated == true) {
+                    Log.w(TAG, "⚠️ Previous session terminated on device: ${body.previousDeviceName}")
+                }
+                Log.d(TAG, "✅ Login success, sessionId: ${body?.sessionId}")
+                body
             } else {
                 Log.e(TAG, "Login failed: ${response.code()}")
                 LoginResponse(
@@ -452,6 +465,9 @@ class PlcApiClient(
                     accessToken = null,
                     refreshToken = null,
                     expiresAt = null,
+                    sessionId = null,
+                    previousSessionTerminated = null,
+                    previousDeviceName = null,
                     user = null,
                     error = "Login failed: ${response.code()}"
                 )
@@ -463,6 +479,9 @@ class PlcApiClient(
                 accessToken = null,
                 refreshToken = null,
                 expiresAt = null,
+                sessionId = null,
+                previousSessionTerminated = null,
+                previousDeviceName = null,
                 user = null,
                 error = e.message
             )
@@ -470,12 +489,80 @@ class PlcApiClient(
     }
 
     /**
-     * Logout
+     * Validate session - check if session is still valid
+     * Call when app resumes from background
      */
-    suspend fun logout(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun validateSession(sessionId: String, deviceId: String): ValidateSessionResponse? = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.logout()
-            response.isSuccessful && response.body()?.success == true
+            Log.d(TAG, "🔍 Validating session: $sessionId")
+            val response = apiService.validateSession(ValidateSessionRequest(sessionId, deviceId))
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.isValid == false) {
+                    Log.w(TAG, "⚠️ Session invalid: ${body.invalidReason}, newDevice: ${body.newDeviceName}")
+                }
+                body
+            } else {
+                Log.e(TAG, "Validate session failed: ${response.code()}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Validate session error", e)
+            null
+        }
+    }
+
+    /**
+     * Heartbeat - keep session alive
+     * Call every 30-60 seconds while app is active
+     */
+    suspend fun heartbeat(sessionId: String, deviceId: String): HeartbeatResponse? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.heartbeat(HeartbeatRequest(sessionId, deviceId))
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.sessionValid == false) {
+                    Log.w(TAG, "⚠️ Heartbeat: session invalid - ${body.invalidReason}")
+                }
+                body
+            } else {
+                Log.e(TAG, "Heartbeat failed: ${response.code()}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Heartbeat error", e)
+            null
+        }
+    }
+
+    /**
+     * Get current session info
+     */
+    suspend fun getSessionInfo(): SessionInfo? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getSessionInfo()
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data
+            } else {
+                Log.e(TAG, "Get session info failed: ${response.code()}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Get session info error", e)
+            null
+        }
+    }
+
+    /**
+     * Logout with refresh token
+     */
+    suspend fun logout(refreshToken: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "🚪 Logging out...")
+            val response = apiService.logout(LogoutRequest(refreshToken))
+            val success = response.isSuccessful && response.body()?.success == true
+            Log.d(TAG, if (success) "✅ Logout success" else "❌ Logout failed")
+            success
         } catch (e: Exception) {
             Log.e(TAG, "Logout error", e)
             false

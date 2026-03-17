@@ -1,15 +1,19 @@
 package com.example.s7opcuaapp.viewmodel
 
+import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.s7opcuaapp.data.api.LockStatusResponse
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
+import com.example.s7opcuaapp.data.auth.HeartbeatManager
 import com.example.s7opcuaapp.data.auth.LockManager
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.ui.screen.login.LoginUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -21,9 +25,11 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class LoginViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val plcApiClient: PlcApiClient,
     private val authManager: AuthManager,
     private val lockManager: LockManager,
+    private val heartbeatManager: HeartbeatManager,
     private val prefsManager: PrefsManager
 ) : ViewModel() {
 
@@ -171,7 +177,7 @@ class LoginViewModel @Inject constructor(
     }
 
     /**
-     * Login using API authentication
+     * Login using API authentication with Single-Session
      */
     fun onLoginClicked(onSuccess: () -> Unit) {
         val current = _uiState.value
@@ -183,20 +189,38 @@ class LoginViewModel @Inject constructor(
             return
         }
 
-        Log.d(TAG, "🔑 Login attempt: $username")
+        // Get device info for single-session authentication
+        val deviceId = prefsManager.getDeviceId(context)
+        val deviceName = prefsManager.getDeviceName()
+
+        Log.d(TAG, "🔑 Login attempt: $username on device: $deviceName ($deviceId)")
         _uiState.value = current.copy(isLoading = true, errorMessage = null)
 
         viewModelScope.launch {
             try {
-                val response = plcApiClient.login(username, password)
+                val response = plcApiClient.login(username, password, deviceId, deviceName)
 
                 if (response?.success == true && response.accessToken != null) {
                     // Set auth token for subsequent API requests
                     plcApiClient.setAuthToken(response.accessToken)
 
-                    // Save login response to AuthManager
+                    // Save tokens for logout and refresh
+                    if (response.refreshToken != null) {
+                        prefsManager.saveTokens(response.accessToken, response.refreshToken)
+                    }
+
+                    // Save login response to AuthManager (includes sessionId)
                     authManager.saveLoginResponse(response)
-                    Log.d(TAG, "✅ API login successful: ${response.user?.username}")
+                    Log.d(TAG, "✅ API login successful: ${response.user?.username}, sessionId: ${response.sessionId}")
+
+                    // Start heartbeat timer for Single-Session
+                    heartbeatManager.startHeartbeat()
+
+                    // Check if another device was kicked
+                    if (response.previousSessionTerminated == true) {
+                        Log.w(TAG, "⚠️ Previous session on '${response.previousDeviceName}' was terminated")
+                        // Could show a toast or info message here
+                    }
 
                     // Refresh lock status after login
                     refreshLockStatus()
@@ -224,25 +248,32 @@ class LoginViewModel @Inject constructor(
     }
 
     /**
-     * Logout from API
+     * Logout from API with refreshToken
      */
     fun logout() {
         viewModelScope.launch {
             try {
+                // Stop heartbeat timer
+                heartbeatManager.stopHeartbeat()
+
                 // Release lock if held
                 if (lockManager.hasLock()) {
                     plcApiClient.releaseLock()
                 }
 
-                // Logout from API
-                plcApiClient.logout()
+                // Logout from API with refreshToken
+                val refreshToken = prefsManager.getRefreshToken()
+                if (refreshToken != null) {
+                    plcApiClient.logout(refreshToken)
+                }
 
                 // Clear auth token
                 plcApiClient.setAuthToken(null)
 
-                // Clear local auth state
+                // Clear local auth state and tokens
                 authManager.clearAuth()
                 lockManager.clearLockState()
+                prefsManager.clearTokens()
 
                 // Reset UI state
                 _uiState.value = LoginUiState()
@@ -251,9 +282,11 @@ class LoginViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Logout error", e)
                 // Still clear local state even if API call fails
+                heartbeatManager.stopHeartbeat()
                 plcApiClient.setAuthToken(null)
                 authManager.clearAuth()
                 lockManager.clearLockState()
+                prefsManager.clearTokens()
                 _uiState.value = LoginUiState()
             }
         }
@@ -368,6 +401,23 @@ class LoginViewModel @Inject constructor(
      * Check if in demo mode
      */
     fun isDemoMode(): Boolean = authManager.isDemoMode()
+
+    // ============== Session Validation ==============
+
+    /**
+     * Validate session when app resumes from background
+     * Call this from Activity.onResume()
+     */
+    fun validateSessionOnResume() {
+        if (!isDemoMode() && isAuthenticated()) {
+            heartbeatManager.validateSessionOnResume()
+        }
+    }
+
+    /**
+     * Observe session validation state
+     */
+    val isValidatingSession = heartbeatManager.isValidating
 
     // ============== Demo Mode ==============
 
