@@ -447,11 +447,19 @@ class ControlViewModel @Inject constructor(
                     Log.d("ControlVM", "🔄 Starting connection attempt $connectionAttempts/$maxRetryAttempts")
 
                     try {
+                        // Check for selected PLC from server (API-based approach)
+                        val selectedPlcId = prefsManager.getSelectedPlcId()
                         val currentDevice = prefsManager.getCurrentDevice()
-                        if (currentDevice == null) {
+
+                        // Validate: need either selectedPlcId (from server) or currentDevice (local config)
+                        if (selectedPlcId == null && currentDevice == null) {
+                            Log.e("ControlVM", "❌ No PLC selected and no device configured")
                             _connectionState.value = ConnectionState.MaxRetriesExceeded("No device configured")
                             return@withLock
                         }
+
+                        Log.d("ControlVM", "   Selected PLC ID: $selectedPlcId")
+                        Log.d("ControlVM", "   Current Device: ${currentDevice?.name ?: "null"}")
 
                         // Set connecting state immediately
                         _connectionState.value = ConnectionState.Connecting(connectionAttempts)
@@ -464,9 +472,26 @@ class ControlViewModel @Inject constructor(
                             )
                         }
 
+                        // For API-based connection: create virtual DeviceEntity from API server config
+                        // This is used by Repository for logging/tracking purposes
+                        val deviceToUse = currentDevice ?: run {
+                            val serverIp = prefsManager.getApiServerIp()
+                            val serverPort = prefsManager.getApiServerPort()
+                            com.example.s7opcuaapp.data.model.DeviceEntity(
+                                id = selectedPlcId ?: "api-device",
+                                name = prefsManager.getSelectedPlcName() ?: "API PLC",
+                                ipAddress = serverIp,
+                                port = 4840,
+                                apiPort = serverPort.toIntOrNull() ?: 5000,
+                                opcUsername = "",
+                                opcPassword = "",
+                                useOpcUa = true
+                            )
+                        }
+
                         // Update device if needed
                         if (!connectionStarted) {
-                            repoImpl.updateDevice(currentDevice)
+                            repoImpl.updateDevice(deviceToUse)
                         }
 
                         // Start connection with timeout
