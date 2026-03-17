@@ -36,21 +36,8 @@ fun LoginScreen(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Settings icon at top right
-        IconButton(
-            onClick = onShowServerConfig,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "API Server Settings",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-
         // Main login card - scrollable for landscape/small screens
+        // (Đặt trước để IconButton nằm trên cùng, có thể click được)
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -162,6 +149,21 @@ fun LoginScreen(
                     }
                 }
             }
+        }
+
+        // Settings icon at top right
+        // (Đặt sau Column để nằm trên cùng, có thể click được)
+        IconButton(
+            onClick = onShowServerConfig,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "API Server Settings",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
 
         // Server config dialog
