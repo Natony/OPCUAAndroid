@@ -54,6 +54,16 @@ class PlcSignalRClient(
     private val _allTagsUpdates = MutableSharedFlow<List<TagDto>>(replay = 1, extraBufferCapacity = 1)
     val allTagsUpdates: SharedFlow<List<TagDto>> = _allTagsUpdates
 
+    // Lock events flows
+    private val _lockAcquiredEvents = MutableSharedFlow<LockEventDto>(replay = 0, extraBufferCapacity = 10)
+    val lockAcquiredEvents: SharedFlow<LockEventDto> = _lockAcquiredEvents
+
+    private val _lockReleasedEvents = MutableSharedFlow<LockEventDto>(replay = 0, extraBufferCapacity = 10)
+    val lockReleasedEvents: SharedFlow<LockEventDto> = _lockReleasedEvents
+
+    private val _lockExtendedEvents = MutableSharedFlow<LockEventDto>(replay = 0, extraBufferCapacity = 10)
+    val lockExtendedEvents: SharedFlow<LockEventDto> = _lockExtendedEvents
+
     /**
      * Connect to SignalR hub
      */
@@ -146,6 +156,48 @@ class PlcSignalRClient(
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing AllTagValues", e)
+                }
+            }, Any::class.java)
+
+            // Handle lock acquired event
+            on("LockAcquired", { data: Any ->
+                try {
+                    Log.d(TAG, "📥 Received LockAcquired: $data")
+                    val json = gson.toJson(data)
+                    val event = gson.fromJson(json, LockEventDto::class.java)
+                    scope.launch {
+                        _lockAcquiredEvents.emit(event)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing LockAcquired", e)
+                }
+            }, Any::class.java)
+
+            // Handle lock released event
+            on("LockReleased", { data: Any ->
+                try {
+                    Log.d(TAG, "📥 Received LockReleased: $data")
+                    val json = gson.toJson(data)
+                    val event = gson.fromJson(json, LockEventDto::class.java)
+                    scope.launch {
+                        _lockReleasedEvents.emit(event)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing LockReleased", e)
+                }
+            }, Any::class.java)
+
+            // Handle lock extended event
+            on("LockExtended", { data: Any ->
+                try {
+                    Log.d(TAG, "📥 Received LockExtended: $data")
+                    val json = gson.toJson(data)
+                    val event = gson.fromJson(json, LockEventDto::class.java)
+                    scope.launch {
+                        _lockExtendedEvents.emit(event)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing LockExtended", e)
                 }
             }, Any::class.java)
 

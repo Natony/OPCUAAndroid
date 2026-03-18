@@ -69,3 +69,18 @@ data class TagValueUpdate(
     @SerializedName("Quality") val quality: String,
     @SerializedName("Timestamp") val timestamp: String
 )
+
+/**
+ * Lock event from SignalR (LockAcquired, LockReleased, LockExtended)
+ */
+data class LockEventDto(
+    @SerializedName("LockId") val lockId: String?,
+    @SerializedName("Username") val username: String?,
+    @SerializedName("UserId") val userId: String?,
+    @SerializedName("DeviceId") val deviceId: String?,
+    @SerializedName("DeviceName") val deviceName: String?,
+    @SerializedName("AcquiredAt") val acquiredAt: String?,
+    @SerializedName("ExpiresAt") val expiresAt: String?,
+    @SerializedName("RemainingSeconds") val remainingSeconds: Long?,
+    @SerializedName("Timestamp") val timestamp: String?
+)
