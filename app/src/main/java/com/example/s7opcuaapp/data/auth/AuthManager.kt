@@ -295,6 +295,13 @@ class AuthManager @Inject constructor(
     }
 
     /**
+     * Get current user ID
+     */
+    fun getUserId(): String? {
+        return prefs.getString(KEY_USER_ID, null)
+    }
+
+    /**
      * Check if in demo mode
      */
     fun isDemoMode(): Boolean {

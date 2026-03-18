@@ -130,6 +130,12 @@ class ControlViewModel @Inject constructor(
         // Setup LockManager callbacks
         setupLockManagerCallbacks()
 
+        // Start SignalR lock event listeners for real-time updates
+        startSignalRLockEventListeners()
+
+        // Set current user ID for lock event identification
+        authManager.getUserId()?.let { lockManager.setCurrentUserId(it) }
+
         // Load saved PLC ID and set on PlcApiClient
         val savedPlcId = prefsManager.getSelectedPlcId()
         val savedPlcName = prefsManager.getSelectedPlcName()
@@ -298,6 +304,35 @@ class ControlViewModel @Inject constructor(
                 }
             }
         )
+    }
+
+    /**
+     * Start listening for SignalR lock events for real-time lock status updates
+     */
+    private fun startSignalRLockEventListeners() {
+        // Listen for LockAcquired events
+        viewModelScope.launch {
+            plcApiClient.observeLockAcquired().collect { event ->
+                Log.d("ControlVM", "📡 SignalR LockAcquired: ${event.username}")
+                lockManager.handleLockAcquiredEvent(event)
+            }
+        }
+
+        // Listen for LockReleased events
+        viewModelScope.launch {
+            plcApiClient.observeLockReleased().collect { event ->
+                Log.d("ControlVM", "📡 SignalR LockReleased: ${event.username}")
+                lockManager.handleLockReleasedEvent(event)
+            }
+        }
+
+        // Listen for LockExtended events
+        viewModelScope.launch {
+            plcApiClient.observeLockExtended().collect { event ->
+                Log.d("ControlVM", "📡 SignalR LockExtended: ${event.username}, remaining=${event.remainingSeconds}s")
+                lockManager.handleLockExtendedEvent(event)
+            }
+        }
     }
 
     /**

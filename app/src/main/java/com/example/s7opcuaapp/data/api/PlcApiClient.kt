@@ -428,6 +428,27 @@ class PlcApiClient(
     }
 
     /**
+     * Get lock acquired events flow (real-time from SignalR)
+     */
+    fun observeLockAcquired(): SharedFlow<LockEventDto> {
+        return signalRClient.lockAcquiredEvents
+    }
+
+    /**
+     * Get lock released events flow (real-time from SignalR)
+     */
+    fun observeLockReleased(): SharedFlow<LockEventDto> {
+        return signalRClient.lockReleasedEvents
+    }
+
+    /**
+     * Get lock extended events flow (real-time from SignalR)
+     */
+    fun observeLockExtended(): SharedFlow<LockEventDto> {
+        return signalRClient.lockExtendedEvents
+    }
+
+    /**
      * Cleanup resources
      */
     fun cleanup() {

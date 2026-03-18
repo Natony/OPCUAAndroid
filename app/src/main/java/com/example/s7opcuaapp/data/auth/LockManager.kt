@@ -314,4 +314,80 @@ class LockManager @Inject constructor() {
         val secs = seconds % 60
         return String.format("%02d:%02d", minutes, secs)
     }
+
+    // ============== SignalR Event Handlers ==============
+
+    // Current user ID (set after login)
+    private var currentUserId: String? = null
+
+    /**
+     * Set current user ID for identifying own lock events
+     */
+    fun setCurrentUserId(userId: String?) {
+        currentUserId = userId
+        Log.d(TAG, "Current user ID set: $userId")
+    }
+
+    /**
+     * Handle LockAcquired event from SignalR
+     * Called when someone acquires the lock (real-time notification)
+     */
+    fun handleLockAcquiredEvent(event: LockEventDto) {
+        Log.d(TAG, "📡 SignalR LockAcquired: user=${event.username}, userId=${event.userId}")
+
+        val isMyLock = currentUserId != null && event.userId == currentUserId
+
+        if (isMyLock) {
+            // We acquired the lock
+            _lockState.value = LockState.MyLock
+            _remainingSeconds.value = capRemainingSeconds(event.remainingSeconds)
+            startAutoExtendMonitoring()
+            Log.d(TAG, "✅ [SignalR] Our lock acquired")
+        } else {
+            // Someone else acquired the lock
+            stopAutoExtendMonitoring()
+            _lockState.value = LockState.OtherLock(event.username)
+            _remainingSeconds.value = capRemainingSeconds(event.remainingSeconds)
+            Log.d(TAG, "🔒 [SignalR] Lock acquired by ${event.username}")
+        }
+    }
+
+    /**
+     * Handle LockReleased event from SignalR
+     * Called when someone releases the lock (real-time notification)
+     */
+    fun handleLockReleasedEvent(event: LockEventDto) {
+        Log.d(TAG, "📡 SignalR LockReleased: user=${event.username}, userId=${event.userId}")
+
+        val wasMyLock = _lockState.value is LockState.MyLock
+
+        stopAutoExtendMonitoring()
+        _lockState.value = LockState.NoLock
+        _remainingSeconds.value = null
+        _lockStatus.value = null
+
+        if (wasMyLock) {
+            Log.d(TAG, "🔓 [SignalR] Our lock was released")
+        } else {
+            Log.d(TAG, "🔓 [SignalR] Lock released by ${event.username}")
+        }
+    }
+
+    /**
+     * Handle LockExtended event from SignalR
+     * Called when someone extends the lock (real-time notification)
+     */
+    fun handleLockExtendedEvent(event: LockEventDto) {
+        Log.d(TAG, "📡 SignalR LockExtended: user=${event.username}, remainingSeconds=${event.remainingSeconds}")
+
+        val isMyLock = currentUserId != null && event.userId == currentUserId
+
+        _remainingSeconds.value = capRemainingSeconds(event.remainingSeconds)
+
+        if (isMyLock) {
+            Log.d(TAG, "⏱️ [SignalR] Our lock extended to ${event.remainingSeconds}s")
+        } else {
+            Log.d(TAG, "⏱️ [SignalR] Lock extended by ${event.username}")
+        }
+    }
 }
