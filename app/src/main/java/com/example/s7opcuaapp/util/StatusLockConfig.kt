@@ -96,7 +96,7 @@ class StatusLockConfig @Inject constructor(
                 description = description,
                 lockAllButtons = true, // Chưa sẵn sàng - LOCK all
                 isEnabled = true,
-                exemptButtons = setOf(4, 5) // Chỉ cho Power (4) và Reset (5)
+                exemptButtons = setOf(4, 5, 10) // Power (4), Reset (5), Emergency (10) - luôn mở khóa
             )
             1 -> StatusLockRule(
                 statusValue = status,
@@ -110,7 +110,7 @@ class StatusLockConfig @Inject constructor(
                 description = description,
                 lockAllButtons = true, // Dừng khẩn cấp - LOCK all
                 isEnabled = true,
-                exemptButtons = setOf(5) // Chỉ cho Reset (5)
+                exemptButtons = setOf(5, 10) // Reset (5), Emergency (10) - luôn mở khóa
             )
             in 3..15 -> StatusLockRule(
                 statusValue = status,
