@@ -19,7 +19,8 @@ import com.example.s7opcuaapp.viewmodel.ConfigUiState
 fun ConfigScreen(
     uiState: ConfigUiState,
     onRefreshServerPlcs: () -> Unit = {},
-    onSelectServerPlc: (PlcDto) -> Unit = {}
+    onSelectServerPlc: (PlcDto) -> Unit = {},
+    onReLogin: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -176,21 +177,42 @@ fun ConfigScreen(
                             shape = MaterialTheme.shapes.small,
                             color = MaterialTheme.colorScheme.errorContainer
                         ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Error,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = msg,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = msg,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                // Show re-login button if session expired
+                                if (msg.contains("đăng nhập", ignoreCase = true) ||
+                                    msg.contains("hết hạn", ignoreCase = true) ||
+                                    msg.contains("401") ||
+                                    msg.contains("403")) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = onReLogin,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Logout,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Đăng nhập lại")
+                                    }
+                                }
                             }
                         }
                     }

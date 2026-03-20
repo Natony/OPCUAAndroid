@@ -270,6 +270,12 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 ConfigScreen(
                     uiState = uiState,
                     onRefreshServerPlcs = { configViewModel.loadServerPlcs() },
+                    onReLogin = {
+                        // Clear session and go to login
+                        logoutViewModel.logout {
+                            onLogout()
+                        }
+                    },
                     onSelectServerPlc = { plc ->
                         configViewModel.onSelectServerPlc(plc) {
                             coroutineScope.launch {

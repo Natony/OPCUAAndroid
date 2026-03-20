@@ -304,17 +304,29 @@ class PlcApiClient(
         try {
             Log.d(TAG, "📋 Getting all PLCs - authToken: ${if (authToken != null) "SET (${authToken?.take(20)}...)" else "NULL"}")
             val response = apiService.getAllPlcs()
-            if (response.isSuccessful && response.body()?.success == true) {
-                val plcs = response.body()?.data ?: emptyList()
-                Log.d(TAG, "Got ${plcs.size} PLCs from server")
-                plcs
-            } else {
-                Log.e(TAG, "Failed to get PLCs: code=${response.code()}, error=${response.body()?.error}")
-                emptyList()
+            when {
+                response.isSuccessful && response.body()?.success == true -> {
+                    val plcs = response.body()?.data ?: emptyList()
+                    Log.d(TAG, "Got ${plcs.size} PLCs from server")
+                    plcs
+                }
+                response.code() == 401 -> {
+                    Log.e(TAG, "❌ Unauthorized (401) - token may be expired")
+                    throw Exception("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.")
+                }
+                response.code() == 403 -> {
+                    Log.e(TAG, "❌ Forbidden (403) - access denied")
+                    throw Exception("Không có quyền truy cập. Vui lòng đăng nhập lại.")
+                }
+                else -> {
+                    val errorMsg = response.body()?.error ?: "HTTP ${response.code()}"
+                    Log.e(TAG, "Failed to get PLCs: code=${response.code()}, error=$errorMsg")
+                    throw Exception("Lỗi server: $errorMsg")
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting PLCs", e)
-            emptyList()
+            throw e
         }
     }
 
