@@ -95,7 +95,7 @@ class HeartbeatManager @Inject constructor(
 
             if (response.sessionValid) {
                 _lastHeartbeatSuccess.value = true
-                Log.d(TAG, "💓 Heartbeat OK")
+                // Heartbeat OK - no need to log every time
             } else {
                 // Session invalidated
                 Log.w(TAG, "💔 Heartbeat: session invalid - ${response.invalidReason}")

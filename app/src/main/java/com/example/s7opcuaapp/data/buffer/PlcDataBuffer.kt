@@ -83,7 +83,7 @@ class PlcDataBuffer @Inject constructor(
                 scheduleBatchEmit()
             }
 
-            Log.v("PlcDataBuffer", "Bool[$index] changed: $previousValue → $value")
+            // Log.v("PlcDataBuffer", "Bool[$index] changed: $previousValue → $value")
         }
     }
 
@@ -103,7 +103,7 @@ class PlcDataBuffer @Inject constructor(
                 scheduleBatchEmit()
             }
 
-            Log.v("PlcDataBuffer", "Int[$index] changed: $previousValue → $value")
+            // Log.v("PlcDataBuffer", "Int[$index] changed: $previousValue → $value")
         }
     }
 

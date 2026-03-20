@@ -185,7 +185,7 @@ class ControlViewModel @Inject constructor(
                     Log.e("ControlVM", "Error observing loading percent", err)
                 }
                 .collect { pct ->
-                    Log.d("ControlVM", "Loading percent = $pct")
+                    // Verbose log disabled - fires frequently
                     _uiState.update { it.copy(loadingPercent = pct) }
 
                     // IMPROVED: Update connection state based on loading progress
@@ -235,7 +235,7 @@ class ControlViewModel @Inject constructor(
             repoImpl.serverConnectionStatus
                 .filterNotNull()
                 .collect { status ->
-                    Log.d("ControlVM", "📡 Server connection status update: plcId=${status.plcId}, state=${status.state}, isConnected=${status.isConnected}")
+                    // Verbose log disabled - fires frequently
 
                     // Check if this status is for our selected PLC
                     val selectedPlcId = prefsManager.getSelectedPlcId()
@@ -245,21 +245,19 @@ class ControlViewModel @Inject constructor(
                         // Update connection state based on server status
                         when {
                             status.isConnected && _connectionState.value !is ConnectionState.Connected -> {
-                                Log.d("ControlVM", "🟢 Server reports PLC connected - syncing state")
+                                // Server reports PLC connected - sync state
                                 _connectionState.value = ConnectionState.Connected
                             }
                             !status.isConnected -> {
                                 val newState = when (status.state.lowercase()) {
                                     "reconnecting", "connecting" -> {
-                                        Log.d("ControlVM", "🟡 Server reports PLC reconnecting")
                                         ConnectionState.Connecting(connectionAttempts)
                                     }
                                     "error", "failed" -> {
-                                        Log.d("ControlVM", "🔴 Server reports PLC error: ${status.state}")
+                                        Log.w("ControlVM", "🔴 Server reports PLC error: ${status.state}")
                                         ConnectionState.Failed(status.state, connectionAttempts)
                                     }
                                     else -> {
-                                        Log.d("ControlVM", "⚪ Server reports PLC disconnected: ${status.state}")
                                         ConnectionState.Failed("Disconnected", connectionAttempts)
                                     }
                                 }
@@ -544,9 +542,7 @@ class ControlViewModel @Inject constructor(
 
                                 val percent = _uiState.value.loadingPercent
 
-                                if (attempts % 4 == 0) { // Log every 2 seconds
-                                    Log.d("ControlVM", "Waiting for connection... $percent% (${attempts/2}s)")
-                                }
+                                // Verbose log disabled - reduce noise during connection
 
                                 when {
                                     percent == 100 -> {
@@ -656,7 +652,7 @@ class ControlViewModel @Inject constructor(
                 try {
                     // Only monitor if we think we're connected
                     if (_connectionState.value !is ConnectionState.Connected) {
-                        Log.d("ControlVM", "Skipping monitor - not in Connected state")
+                        // Skip logging for normal state checks
                         continue
                     }
 

@@ -119,10 +119,9 @@ class PlcSignalRClient(
             // Handle tag value changes
             on("TagValueChanged", { data: Any ->
                 try {
-                    Log.d(TAG, "📥 Received TagValueChanged: $data")
+                    // Verbose log disabled - fires frequently
                     val json = gson.toJson(data)
                     val update = gson.fromJson(json, TagValueUpdate::class.java)
-                    Log.d(TAG, "📥 Parsed update: nodeId=${update.nodeId}, value=${update.value}")
                     scope.launch {
                         _tagValueUpdates.emit(update)
                     }

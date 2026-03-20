@@ -288,8 +288,8 @@ class ApiRepositoryImpl @Inject constructor(
             updateCounter++
             val now = System.currentTimeMillis()
             if (now - lastUpdateLogTime >= 5000) {
-                val rate = updateCounter * 1000.0 / (now - lastUpdateLogTime)
-                Log.d(TAG, "Update rate: ${String.format("%.1f", rate)}/s")
+                // val rate = updateCounter * 1000.0 / (now - lastUpdateLogTime)
+                // Log.d(TAG, "Update rate: ${String.format("%.1f", rate)}/s")
                 updateCounter = 0
                 lastUpdateLogTime = now
             }
