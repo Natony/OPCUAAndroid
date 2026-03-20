@@ -83,7 +83,7 @@ class StatusLockConfig @Inject constructor(
         val description: String,
         val lockAllButtons: Boolean = true,
         val isEnabled: Boolean = true,
-        val exemptButtons: Set<Int> = emptySet<Int>() // Buttons that are NOT locked in this status
+        val exemptButtons: Set<Int> = setOf() // Buttons that are NOT locked in this status
     )
 
     // Default configuration
@@ -103,7 +103,7 @@ class StatusLockConfig @Inject constructor(
                 description = description,
                 lockAllButtons = false, // Đã sẵn sàng - UNLOCK all
                 isEnabled = true,
-                exemptButtons = emptySet<Int>()
+                exemptButtons = setOf()
             )
             2 -> StatusLockRule(
                 statusValue = status,
@@ -152,14 +152,14 @@ class StatusLockConfig @Inject constructor(
     fun getLockedButtonsForStatus(statusValue: Int): Set<Int> {
         // If override is active, return empty (no locks)
         if (_overrideActive.value) {
-            return emptySet<Int>()
+            return setOf()
         }
 
         val rule = _currentRules.value[statusValue]
 
         // If no rule defined or rule is disabled, default to no locks
         if (rule == null || !rule.isEnabled) {
-            return emptySet<Int>()
+            return setOf()
         }
 
         // If lockAllButtons is true, lock all except exempt buttons
@@ -182,7 +182,7 @@ class StatusLockConfig @Inject constructor(
             allButtons - exemptSet
         } else {
             // No locks for this status
-            emptySet<Int>()
+            setOf()
         }
     }
 
@@ -297,7 +297,7 @@ class StatusLockConfig @Inject constructor(
                                     else -> null
                                 }
                             }.toSet()
-                        } ?: emptySet<Int>()
+                        } ?: setOf()
                     )
                     status to rule
                 }
