@@ -273,7 +273,9 @@ fun MainNavGraph(rootNavController: NavHostController) {
                     onReLogin = {
                         // Clear session and go to login
                         logoutViewModel.logout {
-                            onLogout()
+                            rootNavController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
                         }
                     },
                     onSelectServerPlc = { plc ->
