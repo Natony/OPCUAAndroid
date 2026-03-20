@@ -763,7 +763,7 @@ class ControlViewModel @Inject constructor(
                 it.copy(
                     loadingPercent = 100, // Important: Set to 100 to show UI
                     errorMessage = null,
-                    lockedButtons = (0..14).toSet() + (203..204).toSet() + setOf(999),
+                    lockedButtons = ((0..14).toSet() + (203..204).toSet() + setOf(999)) - 10, // Trừ Emergency (10)
                     busyButtons = emptySet(),
                     plcData = it.plcData.takeIf { data ->
                         // Keep existing data if any
@@ -881,19 +881,23 @@ class ControlViewModel @Inject constructor(
         val statusValue = data.ints.getOrNull(0) ?: 0
 
         // Tính toán locked buttons
+        // QUAN TRỌNG: Button 10 (Emergency) KHÔNG BAO GIỜ bị khóa
+        val emergencyButton = 10
+
         val lockedButtons = if (currentProcessingButton != null) {
-            // Nếu đang xử lý, khóa tất cả nút trừ nút đang xử lý
+            // Nếu đang xử lý, khóa tất cả nút trừ:
+            // 1. Nút đang xử lý (để có thể hủy)
+            // 2. Emergency button (luôn mở khóa để dừng khẩn cấp)
             val allButtons = (0..14).toSet() + (203..230).toSet()
-            currentProcessingButton?.let {
-                allButtons - it
-            } ?: allButtons
+            val exemptButtons = setOfNotNull(currentProcessingButton, emergencyButton)
+            allButtons - exemptButtons
         } else {
             // Kết hợp cả buttonLockRules VÀ statusLockConfig
             val ruleBasedLocks = buttonLockRules.getLockedButtons(data)
             val statusBasedLocks = statusLockConfig.getLockedButtonsForStatus(statusValue)
 
-            // Union của cả 2 loại lock
-            ruleBasedLocks + statusBasedLocks
+            // Union của cả 2 loại lock, nhưng LUÔN loại trừ Emergency
+            (ruleBasedLocks + statusBasedLocks) - emergencyButton
         }
 
         // Debug logging for button lock rules
@@ -1091,12 +1095,14 @@ class ControlViewModel @Inject constructor(
             currentProcessingButton = buttonIndex
 
             // Update UI immediately to show all other buttons as locked
+            // Luôn loại trừ Emergency (10) để đảm bảo có thể dừng khẩn cấp
             _uiState.update { currentState ->
                 val allButtons = (0..14).toSet() + (203..230).toSet()
+                val exemptButtons = setOf(buttonIndex, 10) // Nút đang xử lý + Emergency
                 currentState.copy(
                     isWriting = true,
                     busyButtons = setOf(buttonIndex),
-                    lockedButtons = allButtons - buttonIndex // Lock all except current
+                    lockedButtons = allButtons - exemptButtons
                 )
             }
 
