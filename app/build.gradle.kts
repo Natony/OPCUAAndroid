@@ -115,6 +115,10 @@ dependencies {
     implementation("org.eclipse.milo:sdk-client:0.6.14")
     implementation("org.eclipse.milo:stack-client:0.6.14")
     implementation("org.eclipse.milo:stack-core:0.6.14")
+    // Guava (Android flavour) — Milo internally calls com.google.common.collect.Streams
+    // and friends; without this explicit dep the transitive resolution sometimes
+    // strips the class on Android, causing NoClassDefFoundError at write time.
+    implementation("com.google.guava:guava:33.0.0-android")
     // Pin Bouncy Castle to a single version (avoid duplicate-class conflict
     // with androidx.security:security-crypto transitive BC)
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")

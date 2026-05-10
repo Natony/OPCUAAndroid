@@ -162,7 +162,7 @@ class DirectOpcUaRepositoryImpl(
             val nodeId = boolNodeIds[index]
             val result = client.writeBoolean(nodeId, value)
             if (!result.success) {
-                throw Exception("PLC rejected write: ${result.message}")
+                throw Exception(formatWriteError(result))
             }
 
             // Optimistic update — same pattern as ApiRepositoryImpl.
@@ -187,7 +187,7 @@ class DirectOpcUaRepositoryImpl(
             val nodeId = intNodeIds[index]
             val result = client.writeInt(nodeId, value)
             if (!result.success) {
-                throw Exception("PLC rejected write: ${result.message}")
+                throw Exception(formatWriteError(result))
             }
 
             val writeTime = System.currentTimeMillis() - startTime
@@ -223,6 +223,10 @@ class DirectOpcUaRepositoryImpl(
         updateCollectorJob?.cancel(); updateCollectorJob = null
         stateObserverJob?.cancel(); stateObserverJob = null
     }
+
+    private fun formatWriteError(result: DirectOpcUaClient.WriteResult): String =
+        if (result.statusCode != 0L) "PLC rejected write: ${result.message}"
+        else "Write call failed: ${result.message}"
 
     private fun parseBoolean(value: Any?): Boolean? = when (value) {
         is Boolean -> value
