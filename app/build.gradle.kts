@@ -21,6 +21,12 @@ android {
         resources.excludes.add("META-INF/*.SF")
         resources.excludes.add("META-INF/*.DSA")
         resources.excludes.add("META-INF/*.RSA")
+        // Multi-release JAR (Java 9+) artefacts that BouncyCastle / jspecify
+        // duplicate across modules — none of these are used by the Android runtime.
+        resources.excludes.add("META-INF/versions/**/OSGI-INF/MANIFEST.MF")
+        resources.excludes.add("META-INF/versions/**/module-info.class")
+        resources.excludes.add("META-INF/versions/**/OSGI-INF/**")
+        resources.excludes.add("META-INF/MANIFEST.MF")
     }
 
     defaultConfig {
