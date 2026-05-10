@@ -21,6 +21,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.s7opcuaapp.data.local.ConnectionMode
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.ui.screen.config.ConfigScreen
 import com.example.s7opcuaapp.ui.screen.control.ControlScreen
@@ -159,11 +160,36 @@ fun MainNavGraph(rootNavController: NavHostController) {
             )
         }
     ) { paddingValues ->
-        NavHost(
-            navController = topNavController,
-            startDestination = "control",
-            modifier = Modifier.padding(paddingValues)
-        ) {
+        androidx.compose.foundation.layout.Column(modifier = Modifier.padding(paddingValues)) {
+            // Direct mode warning banner — visible across all screens in main nav while Direct is active.
+            if (prefsManager.getConnectionMode() == ConnectionMode.Direct) {
+                androidx.compose.material3.Surface(
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(8.dp))
+                        androidx.compose.material3.Text(
+                            text = "DIRECT MODE — Authentication & Operator Lock disabled",
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            NavHost(
+                navController = topNavController,
+                startDestination = "control"
+            ) {
             composable("control") {
                 ControlScreen(
                     uiState = controlUiState,
@@ -270,6 +296,28 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 ConfigScreen(
                     uiState = uiState,
                     onRefreshServerPlcs = { configViewModel.loadServerPlcs() },
+                    onConnectionModeChanged = { configViewModel.onConnectionModeChanged(it) },
+                    onDirectEndpointChanged = { configViewModel.onDirectEndpointChanged(it) },
+                    onDirectUsernameChanged = { configViewModel.onDirectUsernameChanged(it) },
+                    onDirectPasswordChanged = { configViewModel.onDirectPasswordChanged(it) },
+                    onDirectSecurityPolicyChanged = { configViewModel.onDirectSecurityPolicyChanged(it) },
+                    onSaveDirectConfig = {
+                        configViewModel.onSaveDirectConfig {
+                            coroutineScope.launch {
+                                // Restart connection so new Direct config takes effect.
+                                Log.d("MainNavGraph", "🛑 Restarting connection after Direct config save...")
+                                controlViewModel.stopConnection()
+                                delay(2000)
+                                controlViewModel.resetConnectionAttempts()
+                                shouldReconnect = true
+                                topNavController.navigate("control") {
+                                    popUpTo("control") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    },
+                    onTestDirectConnection = { configViewModel.onTestDirectConnection() },
                     onReLogin = {
                         // Clear session and go to login
                         logoutViewModel.logout {
@@ -317,6 +365,7 @@ fun MainNavGraph(rootNavController: NavHostController) {
                         }
                     }
                 )
+            }
             }
         }
     }

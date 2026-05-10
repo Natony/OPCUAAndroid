@@ -7,9 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
 import com.example.s7opcuaapp.data.auth.LockManager
+import com.example.s7opcuaapp.data.local.ConnectionMode
 import com.example.s7opcuaapp.data.local.PrefsManager
 import com.example.s7opcuaapp.data.model.PlcData
-import com.example.s7opcuaapp.data.repository.ApiRepositoryImpl
+import com.example.s7opcuaapp.data.repository.RepositoryProvider
 import com.example.s7opcuaapp.data.repository.S7Repository
 import com.example.s7opcuaapp.ui.screen.control.CancelConfirmDialog
 import com.example.s7opcuaapp.ui.screen.control.ControlUiState
@@ -31,7 +32,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @HiltViewModel
 class ControlViewModel @Inject constructor(
     private val prefsManager: PrefsManager,
-    repository: S7Repository,
+    private val repositoryProvider: RepositoryProvider,
     private val performanceMonitor: PerformanceMonitor,
     private val buttonLockConfig: ButtonLockConfig,
     private val statusLockConfig: StatusLockConfig,
@@ -54,7 +55,10 @@ class ControlViewModel @Inject constructor(
     private val _lockError = MutableSharedFlow<String>(replay = 0)
     val lockError: SharedFlow<String> = _lockError.asSharedFlow()
 
-    private val repoImpl = repository as ApiRepositoryImpl
+    /** Active S7Repository — re-resolved through the provider so a runtime mode switch is picked up. */
+    private val repo: S7Repository get() = repositoryProvider.current()
+    private fun isApiMode(): Boolean = prefsManager.getConnectionMode() == ConnectionMode.API
+
     private val functionCodeNodeIndex = 14
 
     // Retry tracking
@@ -127,11 +131,16 @@ class ControlViewModel @Inject constructor(
     }
 
     init {
-        // Setup LockManager callbacks
-        setupLockManagerCallbacks()
+        // In Direct mode the operator lock is bypassed entirely (no server to coordinate with).
+        if (!isApiMode()) {
+            lockManager.setBypassed()
+        } else {
+            // Setup LockManager callbacks
+            setupLockManagerCallbacks()
 
-        // Start SignalR lock event listeners for real-time updates
-        startSignalRLockEventListeners()
+            // Start SignalR lock event listeners for real-time updates
+            startSignalRLockEventListeners()
+        }
 
         // Set current user ID for lock event identification
         authManager.getUserId()?.let { lockManager.setCurrentUserId(it) }
@@ -164,7 +173,7 @@ class ControlViewModel @Inject constructor(
             while (true) {
                 delay(5000) // Check every 5 seconds
                 if (connectionStarted && _uiState.value.loadingPercent == 100) {
-                    if (!repoImpl.isConnected()) {
+                    if (!repositoryProvider.isConnected()) {
                         Log.w("ControlVM", "Connection lost detected")
                         _uiState.update {
                             it.copy(
@@ -180,7 +189,7 @@ class ControlViewModel @Inject constructor(
 
         // Observe loading percent
         viewModelScope.launch {
-            repoImpl.observeLoadingPercent()
+            repositoryProvider.observeLoadingPercent()
                 .catch { err ->
                     Log.e("ControlVM", "Error observing loading percent", err)
                 }
@@ -232,7 +241,7 @@ class ControlViewModel @Inject constructor(
 
         // Observe server-side connection status from SignalR
         viewModelScope.launch {
-            repoImpl.serverConnectionStatus
+            repositoryProvider.observeServerConnectionStatus()
                 .filterNotNull()
                 .collect { status ->
                     // Verbose log disabled - fires frequently
@@ -275,6 +284,7 @@ class ControlViewModel @Inject constructor(
      * Setup LockManager callbacks for auto-refresh and auto-extend
      */
     private fun setupLockManagerCallbacks() {
+        if (!isApiMode()) return
         lockManager.setCallbacks(
             refreshStatus = {
                 viewModelScope.launch {
@@ -308,6 +318,7 @@ class ControlViewModel @Inject constructor(
      * Start listening for SignalR lock events for real-time lock status updates
      */
     private fun startSignalRLockEventListeners() {
+        if (!isApiMode()) return
         // Listen for LockAcquired events
         viewModelScope.launch {
             plcApiClient.observeLockAcquired().collect { event ->
@@ -338,6 +349,9 @@ class ControlViewModel @Inject constructor(
      * @return true if can control, false otherwise
      */
     private fun canControl(): Boolean {
+        // Direct mode bypasses server-side auth and operator lock entirely.
+        if (!isApiMode()) return true
+
         // Check if authenticated
         if (authManager.authState.value !is AuthManager.AuthState.Authenticated) {
             return false
@@ -357,6 +371,9 @@ class ControlViewModel @Inject constructor(
      * @return true if OK to proceed, false if blocked
      */
     private suspend fun checkLockBeforeWrite(operationName: String): Boolean {
+        // Direct mode skips both auth and operator-lock — UI shows the warning banner instead.
+        if (!isApiMode()) return true
+
         // Check auth first
         if (authManager.authState.value !is AuthManager.AuthState.Authenticated) {
             _lockError.emit("Chưa đăng nhập. Vui lòng đăng nhập để điều khiển.")
@@ -392,6 +409,7 @@ class ControlViewModel @Inject constructor(
      * Acquire operator lock
      */
     fun acquireLock() {
+        if (!isApiMode()) return
         viewModelScope.launch {
             lockManager.startAcquiring()
             try {
@@ -420,6 +438,7 @@ class ControlViewModel @Inject constructor(
      * Release operator lock
      */
     fun releaseLock() {
+        if (!isApiMode()) return
         viewModelScope.launch {
             lockManager.startReleasing()
             try {
@@ -441,6 +460,7 @@ class ControlViewModel @Inject constructor(
      * Refresh lock status from server
      */
     fun refreshLockStatus() {
+        if (!isApiMode()) return
         viewModelScope.launch {
             try {
                 Log.d("ControlVM", "🔒 Fetching lock status from server...")
@@ -463,7 +483,7 @@ class ControlViewModel @Inject constructor(
                     // Check if already connected AND actually connected to PLC
                     if (connectionStarted &&
                         _connectionState.value is ConnectionState.Connected &&
-                        repoImpl.isConnected()) {
+                        repositoryProvider.isConnected()) {
                         Log.d("ControlVM", "Already connected and PLC connection valid")
                         return@withLock
                     }
@@ -524,12 +544,12 @@ class ControlViewModel @Inject constructor(
 
                         // Update device if needed
                         if (!connectionStarted) {
-                            repoImpl.updateDevice(deviceToUse)
+                            repo.updateDevice(deviceToUse)
                         }
 
                         // Start connection with timeout
                         withTimeout(CONNECTION_TIMEOUT_MS) {
-                            repoImpl.start()
+                            repositoryProvider.start()
 
                             // Wait for connection to establish
                             var connected = false
@@ -657,7 +677,7 @@ class ControlViewModel @Inject constructor(
                     }
 
                     val isConnected = withTimeoutOrNull(2000L) {
-                        repoImpl.isConnected()
+                        repositoryProvider.isConnected()
                     } ?: false
 
                     if (!isConnected) {
@@ -783,7 +803,7 @@ class ControlViewModel @Inject constructor(
 
     fun refreshConnectionState() {
         viewModelScope.launch {
-            val isConnected = repoImpl.isConnected()
+            val isConnected = repositoryProvider.isConnected()
             val loadingPercent = _uiState.value.loadingPercent
 
             Log.d("ControlVM", "Refreshing connection state: connected=$isConnected, loading=$loadingPercent")
@@ -817,7 +837,7 @@ class ControlViewModel @Inject constructor(
             var consecutiveErrors = 0
             val maxConsecutiveErrors = 3
 
-            repoImpl.observePlcData()
+            repo.observePlcData()
                 .flowOn(Dispatchers.Default)
                 .distinctUntilChanged()
                 .sample(uiUpdateThrottle.milliseconds)
@@ -860,7 +880,7 @@ class ControlViewModel @Inject constructor(
 
     private suspend fun updateUIWithPlcData(data: PlcData) {
         // Check if we're still connected - now using the method correctly
-        if (!connectionStarted || !repoImpl.isConnected()) {
+        if (!connectionStarted || !repositoryProvider.isConnected()) {
             _uiState.update {
                 it.copy(
                     errorMessage = "Connection lost to PLC",
@@ -952,7 +972,7 @@ class ControlViewModel @Inject constructor(
                 viewModelScope.launch(Dispatchers.IO) {
                     val apiStartTime = System.currentTimeMillis()
                     try {
-                        repoImpl.writeBoolean(index, false)
+                        repo.writeBoolean(index, false)
                         val apiTime = System.currentTimeMillis() - apiStartTime
                         Log.d("ControlVM", "✅ Button $index release API took ${apiTime}ms")
                     } catch (e: Exception) {
@@ -992,7 +1012,7 @@ class ControlViewModel @Inject constructor(
 
                 // Stop repository
                 try {
-                    repoImpl.stop()
+                    repo.stop()
                 } catch (e: Exception) {
                     Log.e("ControlVM", "Error stopping repository", e)
                 }
@@ -1194,7 +1214,7 @@ class ControlViewModel @Inject constructor(
                 _uiState.update { it.copy(busyButtons = it.busyButtons + index) }
 
                 // Write to PLC
-                repoImpl.writeBoolean(index, newValue)
+                repo.writeBoolean(index, newValue)
 
             } catch (e: Exception) {
                 Log.e("ControlVM", "Error toggling boolean $index", e)
@@ -1225,7 +1245,7 @@ class ControlViewModel @Inject constructor(
             }
 
             // Write to PLC
-            repoImpl.writeBoolean(10, activate)
+            repo.writeBoolean(10, activate)
 
             // Delay nhỏ để PLC xử lý
             delay(100)
@@ -1302,11 +1322,11 @@ class ControlViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (index in 0..13) {
-                    repoImpl.writeBoolean(index, false)
+                    repo.writeBoolean(index, false)
                     Log.d("ControlVM", "✅ Cancelled function: wrote false to bool[$index]")
                 } else if (index >= 200) {
                     val intIndex = index - 200
-                    repoImpl.writeInt(intIndex, 0)
+                    repo.writeInt(intIndex, 0)
                     Log.d("ControlVM", "✅ Cancelled function: wrote 0 to int[$intIndex]")
                 }
             } catch (e: Exception) {
@@ -1394,7 +1414,7 @@ class ControlViewModel @Inject constructor(
                     val apiStartTime = System.currentTimeMillis()
                     try {
                         // Write to PLC (this is the slow part)
-                        repoImpl.writeBoolean(index, true)
+                        repo.writeBoolean(index, true)
 
                         val apiTime = System.currentTimeMillis() - apiStartTime
                         Log.d("ControlVM", "✅ Button $index API call took ${apiTime}ms")
@@ -1503,7 +1523,7 @@ class ControlViewModel @Inject constructor(
         viewModelScope.launch {
             val buttonIndex = index + INT_OFFSET
             executeButtonAction(buttonIndex, "write int") {
-                repoImpl.writeInt(index, value)
+                repo.writeInt(index, value)
             }
             _uiState.update { it.copy(openDialogForIndex = null) }
         }
@@ -1521,14 +1541,14 @@ class ControlViewModel @Inject constructor(
             // Use special index for "send all" operation
             executeButtonAction(sendAllIndex, "send all") {
                 // Write function code
-                repoImpl.writeInt(functionCodeNodeIndex, uiState.value.selectedFunction)
+                repo.writeInt(functionCodeNodeIndex, uiState.value.selectedFunction)
 
                 // Write coordinate values
                 listOf(5, 6, 7, 8, 9, 10).forEach { idx ->
                     val txt = uiState.value.intInputs[idx]
                         ?: uiState.value.plcData.ints.getOrNull(idx)?.toString() ?: "0"
                     val value = txt.toIntOrNull() ?: 0
-                    repoImpl.writeInt(idx, value)
+                    repo.writeInt(idx, value)
                 }
             }
         }
@@ -1575,7 +1595,7 @@ class ControlViewModel @Inject constructor(
 
                 try {
                     releaseAllButtons()
-                    repoImpl.stop()
+                    repo.stop()
                     delay(1000)
 
                     _connectionState.value = ConnectionState.Idle
@@ -1604,7 +1624,7 @@ class ControlViewModel @Inject constructor(
         dataObservationJob?.cancel()
         GlobalScope.launch {
             try {
-                repoImpl.stop()
+                repo.stop()
             } catch (e: Exception) {
                 Log.e("ControlVM", "Error stopping in onCleared", e)
             }

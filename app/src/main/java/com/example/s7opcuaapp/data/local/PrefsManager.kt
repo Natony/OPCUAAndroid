@@ -2,16 +2,34 @@ package com.example.s7opcuaapp.data.local
 
 import android.content.Context
 import androidx.preference.PreferenceManager
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.example.s7opcuaapp.data.model.DeviceEntity
+import com.example.s7opcuaapp.data.model.DirectPlcConfig
+import com.example.s7opcuaapp.data.model.DirectSecurityPolicy
 import com.example.s7opcuaapp.data.model.UserCredentials
 import com.google.gson.reflect.TypeToken
 import com.google.gson.Gson
 import javax.inject.Inject
 
-class PrefsManager @Inject constructor(context: Context) {
+class PrefsManager @Inject constructor(private val context: Context) {
 
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     private val gson = Gson()
+
+    // Encrypted store for sensitive Direct-mode credentials (password only).
+    private val securePrefs by lazy {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            context,
+            "direct_creds_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
     companion object {
         private const val KEY_SESSION_ID        = "session_id"
@@ -37,6 +55,17 @@ class PrefsManager @Inject constructor(context: Context) {
         // Selected PLC from API server
         private const val KEY_SELECTED_PLC_ID   = "selected_plc_id"
         private const val KEY_SELECTED_PLC_NAME = "selected_plc_name"
+        // Connection mode + Direct PLC config (backup connection)
+        private const val KEY_CONNECTION_MODE        = "connection_mode"
+        private const val KEY_DIRECT_ENDPOINT_URL    = "direct_endpoint_url"
+        private const val KEY_DIRECT_SECURITY_POLICY = "direct_security_policy"
+        private const val KEY_DIRECT_USERNAME        = "direct_username"
+        private const val KEY_DIRECT_PUBLISHING_MS   = "direct_publishing_ms"
+        private const val KEY_DIRECT_SAMPLING_MS     = "direct_sampling_ms"
+        private const val KEY_DIRECT_KEEP_ALIVE_S    = "direct_keep_alive_s"
+        private const val KEY_DIRECT_PASSWORD        = "direct_password"
+        private const val KEY_IS_DIRECT_MODE_ACTIVE  = "is_direct_mode_active"
+        private const val DEFAULT_DIRECT_ENDPOINT    = "opc.tcp://192.168.1.100:4840"
         // Button lock rules
         private const val KEY_BUTTON_LOCK_RULES = "button_lock_rules_v2"
         private const val KEY_BUTTON_LOCK_RULES_OVERRIDE = "button_lock_rules_override"
@@ -240,6 +269,57 @@ class PrefsManager @Inject constructor(context: Context) {
 
     fun getApiServerUrl(): String {
         return "http://${getApiServerIp()}:${getApiServerPort()}"
+    }
+
+    // Connection mode (API vs Direct OPC UA backup)
+    fun getConnectionMode(): ConnectionMode {
+        val raw = prefs.getString(KEY_CONNECTION_MODE, ConnectionMode.API.name)
+        return runCatching { ConnectionMode.valueOf(raw ?: ConnectionMode.API.name) }
+            .getOrDefault(ConnectionMode.API)
+    }
+
+    fun saveConnectionMode(mode: ConnectionMode) {
+        prefs.edit().putString(KEY_CONNECTION_MODE, mode.name).apply()
+    }
+
+    fun isDirectModeActive(): Boolean {
+        return prefs.getBoolean(KEY_IS_DIRECT_MODE_ACTIVE, false)
+    }
+
+    fun setDirectModeActive(active: Boolean) {
+        prefs.edit().putBoolean(KEY_IS_DIRECT_MODE_ACTIVE, active).apply()
+    }
+
+    // Direct PLC connection config
+    fun getDirectPlcConfig(): DirectPlcConfig {
+        val policyRaw = prefs.getString(KEY_DIRECT_SECURITY_POLICY, DirectSecurityPolicy.None.name)
+        val policy = runCatching { DirectSecurityPolicy.valueOf(policyRaw ?: DirectSecurityPolicy.None.name) }
+            .getOrDefault(DirectSecurityPolicy.None)
+        return DirectPlcConfig(
+            endpointUrl = prefs.getString(KEY_DIRECT_ENDPOINT_URL, DEFAULT_DIRECT_ENDPOINT) ?: DEFAULT_DIRECT_ENDPOINT,
+            securityPolicy = policy,
+            username = prefs.getString(KEY_DIRECT_USERNAME, "") ?: "",
+            password = securePrefs.getString(KEY_DIRECT_PASSWORD, "") ?: "",
+            publishingIntervalMs = java.lang.Double.longBitsToDouble(
+                prefs.getLong(KEY_DIRECT_PUBLISHING_MS, java.lang.Double.doubleToRawLongBits(250.0))
+            ),
+            samplingIntervalMs = java.lang.Double.longBitsToDouble(
+                prefs.getLong(KEY_DIRECT_SAMPLING_MS, java.lang.Double.doubleToRawLongBits(250.0))
+            ),
+            keepAliveSeconds = prefs.getInt(KEY_DIRECT_KEEP_ALIVE_S, 10)
+        )
+    }
+
+    fun saveDirectPlcConfig(config: DirectPlcConfig) {
+        prefs.edit()
+            .putString(KEY_DIRECT_ENDPOINT_URL, config.endpointUrl)
+            .putString(KEY_DIRECT_SECURITY_POLICY, config.securityPolicy.name)
+            .putString(KEY_DIRECT_USERNAME, config.username)
+            .putLong(KEY_DIRECT_PUBLISHING_MS, java.lang.Double.doubleToRawLongBits(config.publishingIntervalMs))
+            .putLong(KEY_DIRECT_SAMPLING_MS, java.lang.Double.doubleToRawLongBits(config.samplingIntervalMs))
+            .putInt(KEY_DIRECT_KEEP_ALIVE_S, config.keepAliveSeconds)
+            .apply()
+        securePrefs.edit().putString(KEY_DIRECT_PASSWORD, config.password).apply()
     }
 
     // Selected PLC from API server

@@ -13,6 +13,14 @@ android {
     packaging {
         resources.excludes.add("META-INF/INDEX.LIST")
         resources.excludes.add("META-INF/DEPENDENCIES")
+        resources.excludes.add("META-INF/io.netty.versions.properties")
+        resources.excludes.add("META-INF/native-image/**")
+        resources.excludes.add("META-INF/LICENSE*")
+        resources.excludes.add("META-INF/NOTICE*")
+        resources.excludes.add("META-INF/*.kotlin_module")
+        resources.excludes.add("META-INF/*.SF")
+        resources.excludes.add("META-INF/*.DSA")
+        resources.excludes.add("META-INF/*.RSA")
     }
 
     defaultConfig {
@@ -21,6 +29,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        multiDexEnabled = true
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -37,6 +46,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -91,6 +101,23 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    // Bridge between Java 8 CompletableFuture (used by Eclipse Milo) and coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
+
+    // Eclipse Milo - Direct OPC UA client (backup connection mode)
+    // 0.6.x line targets Java 8 bytecode, safe for Android minSdk 24
+    implementation("org.eclipse.milo:sdk-client:0.6.14")
+    implementation("org.eclipse.milo:stack-client:0.6.14")
+    implementation("org.eclipse.milo:stack-core:0.6.14")
+    // Pin Bouncy Castle to a single version (avoid duplicate-class conflict
+    // with androidx.security:security-crypto transitive BC)
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+
+    // Core library desugaring (java.time, CompletableFuture extras for Milo)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    // Multidex (Milo + Netty push past 64K dex method limit on debug builds)
+    implementation("androidx.multidex:multidex:2.0.1")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")

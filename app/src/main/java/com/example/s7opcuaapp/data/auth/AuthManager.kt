@@ -34,6 +34,7 @@ class AuthManager @Inject constructor(
         private const val KEY_ROLE = "role"
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_IS_DEMO_MODE = "is_demo_mode"
+        private const val KEY_IS_DIRECT_MODE = "is_direct_mode"
         // Single-Session keys
         private const val KEY_SESSION_ID = "session_id"
 
@@ -46,6 +47,17 @@ class AuthManager @Inject constructor(
             username = "demo",
             role = UserRole.OPERATOR,
             displayName = "Demo User (Offline)",
+            isActive = true,
+            createdAt = null,
+            lastLoginAt = null
+        )
+
+        // Synthetic user for Direct OPC UA mode (no server auth available).
+        val DIRECT_MODE_USER = UserDto(
+            id = "direct-local-user",
+            username = "direct",
+            role = UserRole.OPERATOR,
+            displayName = "Direct PLC",
             isActive = true,
             createdAt = null,
             lastLoginAt = null
@@ -336,5 +348,34 @@ class AuthManager @Inject constructor(
         _authState.value = AuthState.NotAuthenticated
         _currentUser.value = null
         Log.d(TAG, "Exited demo mode")
+    }
+
+    /** True when the app is operating in Direct OPC UA backup mode (no server auth). */
+    fun isDirectMode(): Boolean = prefs.getBoolean(KEY_IS_DIRECT_MODE, false)
+
+    /**
+     * Enter Direct OPC UA mode — synthesise an authenticated state so existing UI/checks
+     * work, but mark the prefs flag so other code can know that no real server session exists.
+     */
+    fun enterDirectMode() {
+        prefs.edit().apply {
+            putBoolean(KEY_IS_DIRECT_MODE, true)
+            putString(KEY_USER_ID, DIRECT_MODE_USER.id)
+            putString(KEY_USERNAME, DIRECT_MODE_USER.username)
+            putString(KEY_ROLE, DIRECT_MODE_USER.role.name)
+            putString(KEY_DISPLAY_NAME, DIRECT_MODE_USER.displayName)
+            apply()
+        }
+        _currentUser.value = DIRECT_MODE_USER
+        _authState.value = AuthState.Authenticated(DIRECT_MODE_USER)
+        Log.d(TAG, "✅ Entered Direct OPC UA mode")
+    }
+
+    /** Clear the Direct mode flag (called when the user switches back to API mode). */
+    fun exitDirectMode() {
+        prefs.edit().putBoolean(KEY_IS_DIRECT_MODE, false).apply()
+        _authState.value = AuthState.NotAuthenticated
+        _currentUser.value = null
+        Log.d(TAG, "Exited Direct mode")
     }
 }

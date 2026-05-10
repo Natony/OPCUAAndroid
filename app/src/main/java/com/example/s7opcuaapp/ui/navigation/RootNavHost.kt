@@ -76,6 +76,14 @@ fun RootNavHost(navController: NavHostController) {
                         }
                     }
                 },
+                // Direct OPC UA mode — go to config_select so user can fill endpoint/credentials.
+                onDirectModeClicked = {
+                    loginViewModel.enterDirectMode {
+                        navController.navigate("config_select") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    }
+                },
                 // Server config callbacks
                 onShowServerConfig = { loginViewModel.onShowServerConfig() },
                 onServerIpChanged = { ip -> loginViewModel.onServerIpChanged(ip) },
@@ -85,7 +93,7 @@ fun RootNavHost(navController: NavHostController) {
             )
         }
 
-        // 2. ConfigSelect Screen (chọn PLC từ server)
+        // 2. ConfigSelect Screen (chọn PLC từ server hoặc cấu hình Direct OPC UA)
         composable("config_select") {
             val configViewModel: ConfigViewModel = hiltViewModel()
             val uiState by configViewModel.uiState.collectAsStateWithLifecycle()
@@ -100,7 +108,21 @@ fun RootNavHost(navController: NavHostController) {
                             popUpTo("config_select") { inclusive = true }
                         }
                     }
-                }
+                },
+                onConnectionModeChanged = { configViewModel.onConnectionModeChanged(it) },
+                onDirectEndpointChanged = { configViewModel.onDirectEndpointChanged(it) },
+                onDirectUsernameChanged = { configViewModel.onDirectUsernameChanged(it) },
+                onDirectPasswordChanged = { configViewModel.onDirectPasswordChanged(it) },
+                onDirectSecurityPolicyChanged = { configViewModel.onDirectSecurityPolicyChanged(it) },
+                onSaveDirectConfig = {
+                    configViewModel.onSaveDirectConfig {
+                        // After saving Direct config, jump straight into Control screen.
+                        navController.navigate("main") {
+                            popUpTo("config_select") { inclusive = true }
+                        }
+                    }
+                },
+                onTestDirectConnection = { configViewModel.onTestDirectConnection() }
             )
         }
 

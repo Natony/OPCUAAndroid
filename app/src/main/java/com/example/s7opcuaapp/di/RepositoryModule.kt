@@ -4,7 +4,6 @@ import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.buffer.PlcDataBuffer
 import com.example.s7opcuaapp.data.local.AppDatabase
 import com.example.s7opcuaapp.data.local.PrefsManager
-import com.example.s7opcuaapp.data.model.DeviceEntity
 import com.example.s7opcuaapp.data.repository.*
 import com.example.s7opcuaapp.util.ButtonLockConfig
 import com.example.s7opcuaapp.util.ButtonLockRules
@@ -79,32 +78,11 @@ object RepositoryModule {
     }
 
     /**
-     * Provide S7Repository using API-based implementation
-     * This connects through the WPF server instead of direct OPC UA
+     * Resolve the active S7Repository through the provider on each injection so the
+     * ViewModel always sees whichever implementation is currently active.
+     * Intentionally NOT @Singleton — we want fresh resolution after a mode switch.
+     * RepositoryProvider itself is constructor-injected as a @Singleton.
      */
     @Provides
-    fun provideS7Repository(
-        prefsManager: PrefsManager,
-        dataBuffer: PlcDataBuffer,
-        performanceMonitor: PerformanceMonitor,
-        plcApiClient: PlcApiClient
-    ): S7Repository {
-        val device = prefsManager.getCurrentDevice() ?: DeviceEntity(
-            id = "default",
-            name = "Default Device",
-            ipAddress = "192.168.1.100",
-            port = 4840,
-            opcUsername = "",
-            opcPassword = "",
-            useOpcUa = true
-        )
-
-        // Use API-based repository (connects through WPF server)
-        return ApiRepositoryImpl(
-            device = device,
-            dataBuffer = dataBuffer,
-            performanceMonitor = performanceMonitor,
-            sharedApiClient = plcApiClient
-        )
-    }
+    fun provideS7Repository(provider: RepositoryProvider): S7Repository = provider.current()
 }

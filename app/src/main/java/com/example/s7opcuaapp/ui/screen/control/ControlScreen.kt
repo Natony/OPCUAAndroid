@@ -102,13 +102,15 @@ fun ControlScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Lock control bar at top
-            LockControlBar(
-                lockState = lockState,
-                remainingSeconds = lockRemainingSeconds,
-                onAcquireLock = onAcquireLock,
-                onReleaseLock = onReleaseLock
-            )
+            // Hide the operator-lock control bar when in Direct mode (lock concept doesn't apply).
+            if (lockState !is LockManager.LockState.Bypassed) {
+                LockControlBar(
+                    lockState = lockState,
+                    remainingSeconds = lockRemainingSeconds,
+                    onAcquireLock = onAcquireLock,
+                    onReleaseLock = onReleaseLock
+                )
+            }
 
             // Main content
             MainControlContent(

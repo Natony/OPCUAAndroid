@@ -72,6 +72,17 @@ class LockManager @Inject constructor() {
         object Acquiring : LockState()  // Acquiring lock
         object Releasing : LockState()  // Releasing lock
         data class Error(val message: String) : LockState()
+        /** Direct OPC UA mode — lock concept does not apply (no server coordination). */
+        object Bypassed : LockState()
+    }
+
+    /** Switch the manager into a passive "Bypassed" terminal used by Direct mode. */
+    fun setBypassed() {
+        Log.d(TAG, "🟡 Lock bypassed (Direct mode)")
+        stopAutoExtendMonitoring()
+        _lockStatus.value = null
+        _remainingSeconds.value = null
+        _lockState.value = LockState.Bypassed
     }
 
     /**
@@ -203,10 +214,12 @@ class LockManager @Inject constructor() {
     }
 
     /**
-     * Check if current user has the lock
+     * Check if current user has the lock.
+     * In Direct (bypassed) mode this returns true — there is no server-side lock to acquire.
      */
     fun hasLock(): Boolean {
-        return _lockState.value is LockState.MyLock
+        val s = _lockState.value
+        return s is LockState.MyLock || s is LockState.Bypassed
     }
 
     /**

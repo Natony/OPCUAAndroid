@@ -9,7 +9,9 @@ import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.auth.AuthManager
 import com.example.s7opcuaapp.data.auth.HeartbeatManager
 import com.example.s7opcuaapp.data.auth.LockManager
+import com.example.s7opcuaapp.data.local.ConnectionMode
 import com.example.s7opcuaapp.data.local.PrefsManager
+import com.example.s7opcuaapp.data.repository.RepositoryProvider
 import com.example.s7opcuaapp.ui.screen.login.LoginUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -30,7 +32,8 @@ class LoginViewModel @Inject constructor(
     private val authManager: AuthManager,
     private val lockManager: LockManager,
     private val heartbeatManager: HeartbeatManager,
-    private val prefsManager: PrefsManager
+    private val prefsManager: PrefsManager,
+    private val repositoryProvider: RepositoryProvider
 ) : ViewModel() {
 
     companion object {
@@ -447,6 +450,27 @@ class LoginViewModel @Inject constructor(
         )
 
         Log.d(TAG, "✅ Demo mode activated")
+        onSuccess()
+    }
+
+    // ============== Direct OPC UA mode ==============
+
+    /**
+     * Enter Direct OPC UA backup mode. Switches the active repository to
+     * DirectOpcUaRepositoryImpl, marks the auth state synthetic, and lets
+     * the lock manager bypass the server-side coordination.
+     */
+    fun enterDirectMode(onSuccess: () -> Unit) {
+        Log.d(TAG, "🔌 Entering Direct OPC UA mode...")
+        repositoryProvider.switchTo(ConnectionMode.Direct)
+        authManager.enterDirectMode()
+        lockManager.setBypassed()
+
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            errorMessage = null
+        )
+        Log.d(TAG, "✅ Direct mode activated")
         onSuccess()
     }
 }

@@ -27,6 +27,7 @@ fun LoginScreen(
     onTogglePasswordVisibility: () -> Unit,
     onLoginClicked: () -> Unit,
     onDemoModeClicked: () -> Unit = {},
+    onDirectModeClicked: () -> Unit = {},
     onShowServerConfig: () -> Unit = {},
     onServerIpChanged: (String) -> Unit = {},
     onServerPortChanged: (String) -> Unit = {},
@@ -146,6 +147,20 @@ fun LoginScreen(
                         enabled = !uiState.isLoading
                     ) {
                         Text("DEMO MODE (Offline)")
+                    }
+
+                    // Direct OPC UA backup mode — skips server entirely.
+                    OutlinedButton(
+                        onClick = onDirectModeClicked,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        enabled = !uiState.isLoading,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("CONNECT DIRECT (No login)")
                     }
                 }
             }
