@@ -463,6 +463,7 @@ private fun LockControlBar(
                 is LockManager.LockState.Acquiring -> "Đang nhận..."
                 is LockManager.LockState.Releasing -> "Đang trả..."
                 is LockManager.LockState.Error -> "Lỗi"
+                is LockManager.LockState.Bypassed -> "Direct mode (lock disabled)"
             }
 
             Text(
