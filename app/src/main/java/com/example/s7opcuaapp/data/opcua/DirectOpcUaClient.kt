@@ -224,11 +224,16 @@ class DirectOpcUaClient(private val config: DirectPlcConfig) {
             // its implementation calls Guava's Streams.zip() which is missing from the
             // Android Guava variant and triggers NoClassDefFoundError. The lower-level
             // write(List<WriteValue>) API does not.
+            // Pass null status + null timestamps so the server only processes
+            // the value itself. Siemens S7 rejects DataValue(variant) because
+            // that constructor injects StatusCode.GOOD + DateTime.NULL_VALUE,
+            // and the PLC's OPC UA server returns Bad_WriteNotSupported when
+            // the client tries to write a status or timestamp it doesn't own.
             val writeValue = WriteValue(
                 nodeId,
                 AttributeId.Value.uid(),
                 null,                       // indexRange
-                DataValue(variant)          // GOOD status, no timestamps
+                DataValue(variant, null, null)
             )
             val response = activeClient.write(listOf(writeValue)).await()
             val status = response?.results?.firstOrNull()
