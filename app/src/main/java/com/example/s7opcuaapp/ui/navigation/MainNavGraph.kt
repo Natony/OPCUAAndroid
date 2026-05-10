@@ -160,7 +160,11 @@ fun MainNavGraph(rootNavController: NavHostController) {
             )
         }
     ) { paddingValues ->
-        androidx.compose.foundation.layout.Column(modifier = Modifier.padding(paddingValues)) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
             // Direct mode warning banner — visible across all screens in main nav while Direct is active.
             if (prefsManager.getConnectionMode() == ConnectionMode.Direct) {
                 androidx.compose.material3.Surface(
@@ -188,7 +192,8 @@ fun MainNavGraph(rootNavController: NavHostController) {
             }
             NavHost(
                 navController = topNavController,
-                startDestination = "control"
+                startDestination = "control",
+                modifier = Modifier.weight(1f)
             ) {
             composable("control") {
                 ControlScreen(
