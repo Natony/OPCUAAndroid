@@ -57,6 +57,13 @@ class DirectOpcUaClient(private val config: DirectPlcConfig) {
 
     data class NodeUpdate(val nodeId: NodeId, val value: Any?, val statusGood: Boolean)
 
+    /** Result of a write — exposes the raw StatusCode so callers can surface it to the user. */
+    data class WriteResult(val success: Boolean, val statusCode: Long, val message: String) {
+        companion object {
+            val SkippedNoClient = WriteResult(false, 0L, "Not connected")
+        }
+    }
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var client: OpcUaClient? = null
@@ -183,37 +190,54 @@ class DirectOpcUaClient(private val config: DirectPlcConfig) {
         }
     }
 
-    suspend fun writeBoolean(nodeId: NodeId, value: Boolean): Boolean = withContext(Dispatchers.IO) {
+    suspend fun writeBoolean(nodeId: NodeId, value: Boolean): WriteResult = withContext(Dispatchers.IO) {
         writeValue(nodeId, Variant(value))
     }
 
-    suspend fun writeInt(nodeId: NodeId, value: Int): Boolean = withContext(Dispatchers.IO) {
-        // Default to Int32 (S7 DInt). If the server rejects with Bad_TypeMismatch we silently retry as Int16.
-        val ok = writeValue(nodeId, Variant(value))
-        if (ok) return@withContext true
-        // Fallback: try as Short (Int16) for tags that map to S7 Int.
-        writeValue(nodeId, Variant(value.toShort()))
+    /**
+     * Write an integer. Tries Int32 (S7 DInt) first. If the server rejects with
+     * Bad_TypeMismatch, retries as Int16 (S7 Int).
+     */
+    suspend fun writeInt(nodeId: NodeId, value: Int): WriteResult = withContext(Dispatchers.IO) {
+        val r1 = writeValue(nodeId, Variant(value))
+        if (r1.success) return@withContext r1
+        if (isTypeMismatch(r1.statusCode)) {
+            Log.w(TAG, "writeInt: Int32 rejected (${r1.message}), retrying as Int16")
+            return@withContext writeValue(nodeId, Variant(value.toShort()))
+        }
+        r1
     }
 
-    private suspend fun writeValue(nodeId: NodeId, variant: Variant): Boolean {
+    private fun isTypeMismatch(statusCode: Long): Boolean {
+        // Bad_TypeMismatch = 0x80740000
+        return (statusCode and 0xFFFFFFFFL) == 0x80740000L
+    }
+
+    private suspend fun writeValue(nodeId: NodeId, variant: Variant): WriteResult {
         val activeClient = client ?: run {
             Log.w(TAG, "writeValue skipped, client is null")
-            return false
+            return WriteResult.SkippedNoClient
         }
         return try {
+            // DataValue(variant) sets StatusCode.GOOD and no timestamps — the form most
+            // OPC UA servers expect for incoming writes.
             val statusList = activeClient.writeValues(
                 listOf(nodeId),
-                listOf(DataValue(variant, null, null))
+                listOf(DataValue(variant))
             ).await()
             val status = statusList?.firstOrNull()
+            val rawCode = status?.value ?: 0L
             val good = status?.isGood == true
+            val message = status?.toString() ?: "no status returned"
             if (!good) {
-                Log.w(TAG, "Write to $nodeId failed: ${status?.value?.toString(16)}")
+                Log.w(TAG, "Write to $nodeId failed (variant=${variant.value}): $message")
+            } else {
+                Log.d(TAG, "Write to $nodeId OK")
             }
-            good
+            WriteResult(good, rawCode, message)
         } catch (t: Throwable) {
             Log.w(TAG, "Write to $nodeId threw: ${t.message}")
-            false
+            WriteResult(false, 0L, t.message ?: "exception during write")
         }
     }
 

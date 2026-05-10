@@ -160,8 +160,10 @@ class DirectOpcUaRepositoryImpl(
         val startTime = System.currentTimeMillis()
         try {
             val nodeId = boolNodeIds[index]
-            val ok = client.writeBoolean(nodeId, value)
-            if (!ok) throw Exception("Write failed (status not good)")
+            val result = client.writeBoolean(nodeId, value)
+            if (!result.success) {
+                throw Exception("PLC rejected write: ${result.message}")
+            }
 
             // Optimistic update — same pattern as ApiRepositoryImpl.
             dataBuffer.updateBool(index, value)
@@ -170,7 +172,7 @@ class DirectOpcUaRepositoryImpl(
             performanceMonitor.recordNetworkLatency(writeTime)
             Log.d(TAG, "WriteBoolean[$index]=$value in ${writeTime}ms (direct)")
         } catch (e: Exception) {
-            Log.e(TAG, "WriteBoolean[$index] failed", e)
+            Log.e(TAG, "WriteBoolean[$index] failed: ${e.message}")
             throw e
         }
     }
@@ -183,14 +185,16 @@ class DirectOpcUaRepositoryImpl(
         val startTime = System.currentTimeMillis()
         try {
             val nodeId = intNodeIds[index]
-            val ok = client.writeInt(nodeId, value)
-            if (!ok) throw Exception("Write failed (status not good)")
+            val result = client.writeInt(nodeId, value)
+            if (!result.success) {
+                throw Exception("PLC rejected write: ${result.message}")
+            }
 
             val writeTime = System.currentTimeMillis() - startTime
             performanceMonitor.recordNetworkLatency(writeTime)
             Log.d(TAG, "WriteInt[$index]=$value in ${writeTime}ms (direct)")
         } catch (e: Exception) {
-            Log.e(TAG, "WriteInt[$index] failed", e)
+            Log.e(TAG, "WriteInt[$index] failed: ${e.message}")
             throw e
         }
     }
