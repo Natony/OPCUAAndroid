@@ -30,6 +30,7 @@ import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import org.eclipse.milo.opcua.stack.core.types.structured.MonitoredItemCreateRequest
 import org.eclipse.milo.opcua.stack.core.types.structured.MonitoringParameters
 import org.eclipse.milo.opcua.stack.core.types.structured.ReadValueId
+import org.eclipse.milo.opcua.stack.core.types.structured.WriteValue
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 
@@ -219,13 +220,18 @@ class DirectOpcUaClient(private val config: DirectPlcConfig) {
             return WriteResult.SkippedNoClient
         }
         return try {
-            // DataValue(variant) sets StatusCode.GOOD and no timestamps — the form most
-            // OPC UA servers expect for incoming writes.
-            val statusList = activeClient.writeValues(
-                listOf(nodeId),
-                listOf(DataValue(variant))
-            ).await()
-            val status = statusList?.firstOrNull()
+            // NOTE: do NOT use OpcUaClient.writeValues(List<NodeId>, List<DataValue>) here —
+            // its implementation calls Guava's Streams.zip() which is missing from the
+            // Android Guava variant and triggers NoClassDefFoundError. The lower-level
+            // write(List<WriteValue>) API does not.
+            val writeValue = WriteValue(
+                nodeId,
+                AttributeId.Value.uid(),
+                null,                       // indexRange
+                DataValue(variant)          // GOOD status, no timestamps
+            )
+            val response = activeClient.write(listOf(writeValue)).await()
+            val status = response?.results?.firstOrNull()
             val rawCode = status?.value ?: 0L
             val good = status?.isGood == true
             val message = status?.toString() ?: "no status returned"
