@@ -194,6 +194,11 @@ private fun getPositionIcon(posNum: Int, state: Int): Int {
         11 -> when (state) { 0 -> R.drawable.ic_pos11_state0; 1 -> R.drawable.ic_pos11_state1; else -> R.drawable.ic_pos11_state2 }
         12 -> when (state) { 0 -> R.drawable.ic_pos12_state0; 1 -> R.drawable.ic_pos12_state1; else -> R.drawable.ic_pos12_state2 }
         13 -> when (state) { 0 -> R.drawable.ic_pos13_state0; 1 -> R.drawable.ic_pos13_state1; else -> R.drawable.ic_pos13_state2 }
+        14 -> when (state) { 0 -> R.drawable.ic_pos14_state0; 1 -> R.drawable.ic_pos14_state1; else -> R.drawable.ic_pos14_state2 }
+        15 -> when (state) { 0 -> R.drawable.ic_pos15_state0; 1 -> R.drawable.ic_pos15_state1; else -> R.drawable.ic_pos15_state2 }
+        16 -> when (state) { 0 -> R.drawable.ic_pos16_state0; 1 -> R.drawable.ic_pos16_state1; else -> R.drawable.ic_pos16_state2 }
+        17 -> when (state) { 0 -> R.drawable.ic_pos17_state0; 1 -> R.drawable.ic_pos17_state1; else -> R.drawable.ic_pos17_state2 }
+        18 -> when (state) { 0 -> R.drawable.ic_pos18_state0; 1 -> R.drawable.ic_pos18_state1; else -> R.drawable.ic_pos18_state2 }
         else -> R.drawable.ic_pos1_state0
     }
 }

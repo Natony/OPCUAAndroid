@@ -64,7 +64,7 @@ class ApiRepositoryImpl @Inject constructor(
     // bool1-bool15: ns=4;i=13 to ns=4;i=27
     // int1-int31: ns=4;i=28 to ns=4;i=58
     private val boolNodeIds = (13..27).map { "ns=4;i=$it" }
-    private val intNodeIds = (28..58).map { "ns=4;i=$it" }
+    private val intNodeIds = (28..63).map { "ns=4;i=$it" }
 
     // Loading tracker
     private val totalNodes = boolNodeIds.size + intNodeIds.size
@@ -235,7 +235,7 @@ class ApiRepositoryImpl @Inject constructor(
             // Count relevant tags that match our node ID ranges
             val relevantTagCount = tags.count { tag ->
                 val nodeIndex = tag.nodeId.substringAfter("i=").toIntOrNull() ?: 0
-                nodeIndex in 13..27 || nodeIndex in 28..58
+                nodeIndex in 13..27 || nodeIndex in 28..63
             }
 
             // Update total keys based on actual tags from server
@@ -261,7 +261,7 @@ class ApiRepositoryImpl @Inject constructor(
                             loadedCount++
                         }
                         // Int nodes: i=28 to i=58 (int1-int31)
-                        nodeIndex in 28..58 -> {
+                        nodeIndex in 28..63 -> {
                             val index = nodeIndex - 28
                             val value = parseInt(tag.value)
                             dataBuffer.updateInt(index, value)
@@ -305,7 +305,7 @@ class ApiRepositoryImpl @Inject constructor(
                     dataBuffer.updateBool(index, value)
                 }
                 // Int nodes: i=28 to i=58 (int1-int31)
-                nodeIndex in 28..58 -> {
+                nodeIndex in 28..63 -> {
                     val index = nodeIndex - 28
                     val value = parseInt(update.value)
                     dataBuffer.updateInt(index, value)

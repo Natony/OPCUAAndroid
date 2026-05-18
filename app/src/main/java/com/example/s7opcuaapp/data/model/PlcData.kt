@@ -11,7 +11,7 @@ data class PlcData(
         fun empty(): PlcData {
             return PlcData(
                 bools = List(14) { false },
-                ints = List(27) { 0 }
+                ints = List(32) { 0 }
             )
         }
     }

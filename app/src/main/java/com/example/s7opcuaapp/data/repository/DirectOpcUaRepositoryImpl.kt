@@ -36,7 +36,7 @@ class DirectOpcUaRepositoryImpl(
 
     // Same ns=4 numeric mapping the WPF server uses, kept in lockstep with ApiRepositoryImpl.
     private val boolNodeIds: List<NodeId> = (13..27).map { NodeId(NS, uint(it)) }
-    private val intNodeIds: List<NodeId>  = (28..58).map { NodeId(NS, uint(it)) }
+    private val intNodeIds: List<NodeId>  = (28..63).map { NodeId(NS, uint(it)) }
     private val allNodeIds: List<NodeId>  = boolNodeIds + intNodeIds
 
     private val totalNodes = allNodeIds.size
@@ -126,7 +126,7 @@ class DirectOpcUaRepositoryImpl(
                 dataBuffer.updateBool(index, value)
                 loadingTracker.markLoaded(update.nodeId)
             }
-            identifier in 28..58 -> {
+            identifier in 28..63 -> {
                 val index = identifier - 28
                 val value = parseInt(update.value) ?: return
                 dataBuffer.updateInt(index, value)

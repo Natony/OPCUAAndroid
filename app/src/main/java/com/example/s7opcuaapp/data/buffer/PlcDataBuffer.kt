@@ -62,7 +62,7 @@ class PlcDataBuffer @Inject constructor(
     init {
         // Initialize with default values
         repeat(15) { boolBuffer[it] = false }
-        repeat(28) { intBuffer[it] = 0 }
+        repeat(32) { intBuffer[it] = 0 }
 
         Log.d("PlcDataBuffer", "Buffer initialized with default values")
     }
@@ -150,7 +150,7 @@ class PlcDataBuffer @Inject constructor(
 
         // Create snapshot of current data
         val boolList = (0 until 15).map { boolBuffer[it] ?: false }
-        val intList = (0 until 28).map { intBuffer[it] ?: 0 }
+        val intList = (0 until 32).map { intBuffer[it] ?: 0 }
 
         val newData = PlcData(
             bools = boolList,
@@ -204,7 +204,7 @@ class PlcDataBuffer @Inject constructor(
      */
     fun getCurrentData(): PlcData {
         val boolList = (0 until 15).map { boolBuffer[it] ?: false }
-        val intList = (0 until 28).map { intBuffer[it] ?: 0 }
+        val intList = (0 until 32).map { intBuffer[it] ?: 0 }
 
         return PlcData(
             bools = boolList,
@@ -235,7 +235,7 @@ class PlcDataBuffer @Inject constructor(
         intChanged.clear()
 
         repeat(15) { boolBuffer[it] = false }
-        repeat(28) { intBuffer[it] = 0 }
+        repeat(32) { intBuffer[it] = 0 }
 
         pendingEmit.set(false)
         lastEmitTime.set(0)
