@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.s7opcuaapp.R
+import com.example.s7opcuaapp.data.PlcConfig
 import com.example.s7opcuaapp.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,15 +56,16 @@ fun CenterPanel(
             horizontalArrangement = Arrangement.spacedBy(1.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            (15..27).forEachIndexed { index, intIndex ->
-                val posNum = index + 1
+            val positionCount = rememberPositionCount()
+            (1..positionCount).forEach { posNum ->
+                val intIndex = PlcConfig.POSITION_INT_OFFSET + posNum - 1
                 MultiStateStatusItem(
                     "Pos$posNum",
                     data.ints.getOrNull(intIndex) ?: 0,
                     listOf(
-                        getPositionIcon(posNum, 0),
-                        getPositionIcon(posNum, 1),
-                        getPositionIcon(posNum, 2)
+                        rememberPositionIcon(posNum, 0),
+                        rememberPositionIcon(posNum, 1),
+                        rememberPositionIcon(posNum, 2)
                     ),
                     modifier = Modifier.size(36.dp)
                 )
@@ -175,31 +176,6 @@ fun CenterPanel(
                 )
             }
         }
-    }
-}
-
-// Helper function to get position icons
-private fun getPositionIcon(posNum: Int, state: Int): Int {
-    return when (posNum) {
-        1 -> when (state) { 0 -> R.drawable.ic_pos1_state0; 1 -> R.drawable.ic_pos1_state1; else -> R.drawable.ic_pos1_state2 }
-        2 -> when (state) { 0 -> R.drawable.ic_pos2_state0; 1 -> R.drawable.ic_pos2_state1; else -> R.drawable.ic_pos2_state2 }
-        3 -> when (state) { 0 -> R.drawable.ic_pos3_state0; 1 -> R.drawable.ic_pos3_state1; else -> R.drawable.ic_pos3_state2 }
-        4 -> when (state) { 0 -> R.drawable.ic_pos4_state0; 1 -> R.drawable.ic_pos4_state1; else -> R.drawable.ic_pos4_state2 }
-        5 -> when (state) { 0 -> R.drawable.ic_pos5_state0; 1 -> R.drawable.ic_pos5_state1; else -> R.drawable.ic_pos5_state2 }
-        6 -> when (state) { 0 -> R.drawable.ic_pos6_state0; 1 -> R.drawable.ic_pos6_state1; else -> R.drawable.ic_pos6_state2 }
-        7 -> when (state) { 0 -> R.drawable.ic_pos7_state0; 1 -> R.drawable.ic_pos7_state1; else -> R.drawable.ic_pos7_state2 }
-        8 -> when (state) { 0 -> R.drawable.ic_pos8_state0; 1 -> R.drawable.ic_pos8_state1; else -> R.drawable.ic_pos8_state2 }
-        9 -> when (state) { 0 -> R.drawable.ic_pos9_state0; 1 -> R.drawable.ic_pos9_state1; else -> R.drawable.ic_pos9_state2 }
-        10 -> when (state) { 0 -> R.drawable.ic_pos10_state0; 1 -> R.drawable.ic_pos10_state1; else -> R.drawable.ic_pos10_state2 }
-        11 -> when (state) { 0 -> R.drawable.ic_pos11_state0; 1 -> R.drawable.ic_pos11_state1; else -> R.drawable.ic_pos11_state2 }
-        12 -> when (state) { 0 -> R.drawable.ic_pos12_state0; 1 -> R.drawable.ic_pos12_state1; else -> R.drawable.ic_pos12_state2 }
-        13 -> when (state) { 0 -> R.drawable.ic_pos13_state0; 1 -> R.drawable.ic_pos13_state1; else -> R.drawable.ic_pos13_state2 }
-        14 -> when (state) { 0 -> R.drawable.ic_pos14_state0; 1 -> R.drawable.ic_pos14_state1; else -> R.drawable.ic_pos14_state2 }
-        15 -> when (state) { 0 -> R.drawable.ic_pos15_state0; 1 -> R.drawable.ic_pos15_state1; else -> R.drawable.ic_pos15_state2 }
-        16 -> when (state) { 0 -> R.drawable.ic_pos16_state0; 1 -> R.drawable.ic_pos16_state1; else -> R.drawable.ic_pos16_state2 }
-        17 -> when (state) { 0 -> R.drawable.ic_pos17_state0; 1 -> R.drawable.ic_pos17_state1; else -> R.drawable.ic_pos17_state2 }
-        18 -> when (state) { 0 -> R.drawable.ic_pos18_state0; 1 -> R.drawable.ic_pos18_state1; else -> R.drawable.ic_pos18_state2 }
-        else -> R.drawable.ic_pos1_state0
     }
 }
 

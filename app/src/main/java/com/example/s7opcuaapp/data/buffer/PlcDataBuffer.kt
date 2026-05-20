@@ -1,6 +1,7 @@
 package com.example.s7opcuaapp.data.buffer
 
 import android.util.Log
+import com.example.s7opcuaapp.data.PlcConfig
 import com.example.s7opcuaapp.data.model.PlcData
 import com.example.s7opcuaapp.util.PerformanceMonitor
 import kotlinx.coroutines.*
@@ -61,8 +62,8 @@ class PlcDataBuffer @Inject constructor(
 
     init {
         // Initialize with default values
-        repeat(15) { boolBuffer[it] = false }
-        repeat(32) { intBuffer[it] = 0 }
+        repeat(PlcConfig.BOOL_COUNT) { boolBuffer[it] = false }
+        repeat(PlcConfig.INT_COUNT) { intBuffer[it] = 0 }
 
         Log.d("PlcDataBuffer", "Buffer initialized with default values")
     }
@@ -149,8 +150,8 @@ class PlcDataBuffer @Inject constructor(
         }
 
         // Create snapshot of current data
-        val boolList = (0 until 15).map { boolBuffer[it] ?: false }
-        val intList = (0 until 32).map { intBuffer[it] ?: 0 }
+        val boolList = (0 until PlcConfig.BOOL_COUNT).map { boolBuffer[it] ?: false }
+        val intList = (0 until PlcConfig.INT_COUNT).map { intBuffer[it] ?: 0 }
 
         val newData = PlcData(
             bools = boolList,
@@ -203,8 +204,8 @@ class PlcDataBuffer @Inject constructor(
      * Get current data snapshot without triggering emit
      */
     fun getCurrentData(): PlcData {
-        val boolList = (0 until 15).map { boolBuffer[it] ?: false }
-        val intList = (0 until 32).map { intBuffer[it] ?: 0 }
+        val boolList = (0 until PlcConfig.BOOL_COUNT).map { boolBuffer[it] ?: false }
+        val intList = (0 until PlcConfig.INT_COUNT).map { intBuffer[it] ?: 0 }
 
         return PlcData(
             bools = boolList,
@@ -234,8 +235,8 @@ class PlcDataBuffer @Inject constructor(
         boolChanged.clear()
         intChanged.clear()
 
-        repeat(15) { boolBuffer[it] = false }
-        repeat(32) { intBuffer[it] = 0 }
+        repeat(PlcConfig.BOOL_COUNT) { boolBuffer[it] = false }
+        repeat(PlcConfig.INT_COUNT) { intBuffer[it] = 0 }
 
         pendingEmit.set(false)
         lastEmitTime.set(0)

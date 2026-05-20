@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.s7opcuaapp.data.api.ConnectionStatusDto
 import com.example.s7opcuaapp.data.api.PlcApiClient
 import com.example.s7opcuaapp.data.api.TagValueUpdate
+import com.example.s7opcuaapp.data.PlcConfig
 import com.example.s7opcuaapp.data.buffer.PlcDataBuffer
 import com.example.s7opcuaapp.data.model.DeviceEntity
 import com.example.s7opcuaapp.data.model.PlcData
@@ -63,8 +64,8 @@ class ApiRepositoryImpl @Inject constructor(
     // Node IDs configuration - must match WPF server tags
     // bool1-bool15: ns=4;i=13 to ns=4;i=27
     // int1-int31: ns=4;i=28 to ns=4;i=58
-    private val boolNodeIds = (13..27).map { "ns=4;i=$it" }
-    private val intNodeIds = (28..63).map { "ns=4;i=$it" }
+    private val boolNodeIds = PlcConfig.BOOL_NODE_RANGE.map { "ns=4;i=$it" }
+    private val intNodeIds = PlcConfig.INT_NODE_RANGE.map { "ns=4;i=$it" }
 
     // Loading tracker
     private val totalNodes = boolNodeIds.size + intNodeIds.size
@@ -235,7 +236,7 @@ class ApiRepositoryImpl @Inject constructor(
             // Count relevant tags that match our node ID ranges
             val relevantTagCount = tags.count { tag ->
                 val nodeIndex = tag.nodeId.substringAfter("i=").toIntOrNull() ?: 0
-                nodeIndex in 13..27 || nodeIndex in 28..63
+                nodeIndex in PlcConfig.BOOL_NODE_RANGE || nodeIndex in PlcConfig.INT_NODE_RANGE
             }
 
             // Update total keys based on actual tags from server
@@ -253,16 +254,16 @@ class ApiRepositoryImpl @Inject constructor(
 
                     when {
                         // Bool nodes: i=13 to i=27 (bool1-bool15)
-                        nodeIndex in 13..27 -> {
-                            val index = nodeIndex - 13
+                        nodeIndex in PlcConfig.BOOL_NODE_RANGE -> {
+                            val index = nodeIndex - PlcConfig.BOOL_NODE_START
                             val value = parseBoolean(tag.value)
                             dataBuffer.updateBool(index, value)
                             loadingTracker.markLoaded(nodeId)
                             loadedCount++
                         }
                         // Int nodes: i=28 to i=58 (int1-int31)
-                        nodeIndex in 28..63 -> {
-                            val index = nodeIndex - 28
+                        nodeIndex in PlcConfig.INT_NODE_RANGE -> {
+                            val index = nodeIndex - PlcConfig.INT_NODE_START
                             val value = parseInt(tag.value)
                             dataBuffer.updateInt(index, value)
                             loadingTracker.markLoaded(nodeId)
@@ -299,14 +300,14 @@ class ApiRepositoryImpl @Inject constructor(
 
             when {
                 // Bool nodes: i=13 to i=27 (bool1-bool15)
-                nodeIndex in 13..27 -> {
-                    val index = nodeIndex - 13
+                nodeIndex in PlcConfig.BOOL_NODE_RANGE -> {
+                    val index = nodeIndex - PlcConfig.BOOL_NODE_START
                     val value = parseBoolean(update.value)
                     dataBuffer.updateBool(index, value)
                 }
                 // Int nodes: i=28 to i=58 (int1-int31)
-                nodeIndex in 28..63 -> {
-                    val index = nodeIndex - 28
+                nodeIndex in PlcConfig.INT_NODE_RANGE -> {
+                    val index = nodeIndex - PlcConfig.INT_NODE_START
                     val value = parseInt(update.value)
                     dataBuffer.updateInt(index, value)
                 }

@@ -1,5 +1,7 @@
 package com.example.s7opcuaapp.data.model
 
+import com.example.s7opcuaapp.data.PlcConfig
+
 /**
  * Model chứa dữ liệu PLC (mã booleans và ints).
  */
@@ -10,8 +12,8 @@ data class PlcData(
     companion object {
         fun empty(): PlcData {
             return PlcData(
-                bools = List(14) { false },
-                ints = List(32) { 0 }
+                bools = List(PlcConfig.BOOL_COUNT) { false },
+                ints = List(PlcConfig.INT_COUNT) { 0 }
             )
         }
     }

@@ -1,6 +1,7 @@
 package com.example.s7opcuaapp.data.repository
 
 import android.util.Log
+import com.example.s7opcuaapp.data.PlcConfig
 import com.example.s7opcuaapp.data.api.ConnectionStatusDto
 import com.example.s7opcuaapp.data.buffer.PlcDataBuffer
 import com.example.s7opcuaapp.data.model.DeviceEntity
@@ -35,8 +36,8 @@ class DirectOpcUaRepositoryImpl(
     }
 
     // Same ns=4 numeric mapping the WPF server uses, kept in lockstep with ApiRepositoryImpl.
-    private val boolNodeIds: List<NodeId> = (13..27).map { NodeId(NS, uint(it)) }
-    private val intNodeIds: List<NodeId>  = (28..63).map { NodeId(NS, uint(it)) }
+    private val boolNodeIds: List<NodeId> = PlcConfig.BOOL_NODE_RANGE.map { NodeId(NS, uint(it)) }
+    private val intNodeIds: List<NodeId>  = PlcConfig.INT_NODE_RANGE.map { NodeId(NS, uint(it)) }
     private val allNodeIds: List<NodeId>  = boolNodeIds + intNodeIds
 
     private val totalNodes = allNodeIds.size
@@ -120,14 +121,14 @@ class DirectOpcUaRepositoryImpl(
         val identifier = (update.nodeId.identifier as? org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UInteger)
             ?.toInt() ?: return
         when {
-            identifier in 13..27 -> {
-                val index = identifier - 13
+            identifier in PlcConfig.BOOL_NODE_RANGE -> {
+                val index = identifier - PlcConfig.BOOL_NODE_START
                 val value = parseBoolean(update.value) ?: return
                 dataBuffer.updateBool(index, value)
                 loadingTracker.markLoaded(update.nodeId)
             }
-            identifier in 28..63 -> {
-                val index = identifier - 28
+            identifier in PlcConfig.INT_NODE_RANGE -> {
+                val index = identifier - PlcConfig.INT_NODE_START
                 val value = parseInt(update.value) ?: return
                 dataBuffer.updateInt(index, value)
                 loadingTracker.markLoaded(update.nodeId)
