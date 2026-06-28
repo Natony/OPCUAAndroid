@@ -1,46 +1,57 @@
 // ============================================================================
-//  FC: Bang_Tai_4  -  Dieu khien 4 bang tai van chuyen Pallet 2 chieu
-//  - Tach hang (accumulation): pallet dung cho TAI cam bien cuoi bang neu bang ke ban
-//  - CHOT hien dien pallet (Arr_i) -> KHONG dung o vung chet giua 2 cam bien
-//  - Chuoi an toan nut khan (NC noi tiep). Cam bien NO (1 = co pallet).
-//  Tuong duong 1:1 voi ban Ladder trong BangTai_4_LadderLogic.md
-//  Cach dung: External source files -> Add -> Generate blocks from source.
+//  FB: Bang_Tai_4  -  Dieu khien 4 bang tai van chuyen Pallet 2 chieu
+//  Thuat toan cascade tach hang:
+//   - CHOT hien dien pallet Arr_i  -> khong dung o vung chet giua 2 cam bien
+//   - Mot bang chi tha pallet sang bang ke khi bang ke TRONG HOAN TOAN (Arr ke = 0)
+//     va da trong du T_CHECK giay (timer) -> co delay kiem tra
+//   - Back-pressure: cuoi tuyen day -> Arr giu 1 -> chan lan nguoc, CV1 ngung nap
+//  Cam bien NO (1 = co pallet). Nut khan NC noi tiep.
+//  Goi tu OB1 voi 1 instance DB. Import: External sources -> Generate blocks.
 // ============================================================================
+FUNCTION_BLOCK "Bang_Tai_4"
+VAR
+   T_F1 : TON_TIME;   // delay xac nhan CV2 trong (thuan)
+   T_F2 : TON_TIME;   // delay xac nhan CV3 trong (thuan)
+   T_F3 : TON_TIME;   // delay xac nhan CV4 trong (thuan)
+   T_R2 : TON_TIME;   // delay xac nhan CV1 trong (nghich)
+   T_R3 : TON_TIME;   // delay xac nhan CV2 trong (nghich)
+   T_R4 : TON_TIME;   // delay xac nhan CV3 trong (nghich)
+END_VAR
+VAR CONSTANT
+   T_CHECK : TIME := T#1S;   // <-- chinh thoi gian delay kiem tra o day
+END_VAR
 
-// === N1: Chuoi an toan (4 nut khan NC noi tiep) ===
+BEGIN
+// === Chuoi an toan ===
 "Safety_OK" := "EMG_L1" AND "EMG_L2" AND "EMG_R1" AND "EMG_R2";
 
-// === N2/N3: Gom nut Thuan / Nghich ===
+// === Gom nut ===
 "FWD_PB" := "PB_L1_FWD" OR "PB_L2_FWD" OR "PB_R1_FWD" OR "PB_R2_FWD";
 "REV_PB" := "PB_L1_REV" OR "PB_L2_REV" OR "PB_R1_REV" OR "PB_R2_REV";
 
-// === N4: Toan tuyen trong ===
+// === Tuyen trong ===
 "Line_Empty" := NOT ("S1A" OR "S1B" OR "S2A" OR "S2B"
                   OR "S3A" OR "S3B" OR "S4A" OR "S4B");
 
-// === N5: Cam bien tuc thoi tung bang ===
+// === Cam bien tuc thoi ===
 "Occ1" := "S1A" OR "S1B";
 "Occ2" := "S2A" OR "S2B";
 "Occ3" := "S3A" OR "S3B";
 "Occ4" := "S4A" OR "S4B";
 
-// === N6: Khoa che do THUAN (seal-in) ===
+// === Khoa che do ===
 "FWD_Mode" := (("FWD_PB" AND "S1A" AND NOT "REV_Mode") OR "FWD_Mode")
               AND "Safety_OK" AND NOT "Line_Empty";
-
-// === N7: Khoa che do NGHICH (seal-in) ===
 "REV_Mode" := (("REV_PB" AND "S4B" AND NOT "FWD_Mode") OR "REV_Mode")
               AND "Safety_OK" AND NOT "Line_Empty";
 
-// === N8/N9: Co "da toi cam bien xa" (xac nhan da qua bang cuoi truoc khi nha chot) ===
+// === Co da toi cam bien xa ===
 IF "FWD_Mode" AND "S4B" THEN "PassedFwd4" := TRUE; END_IF;
-IF NOT "Arr4"          THEN "PassedFwd4" := FALSE; END_IF;
-
+IF NOT "Arr4"           THEN "PassedFwd4" := FALSE; END_IF;
 IF "REV_Mode" AND "S1A" THEN "PassedRev1" := TRUE; END_IF;
-IF NOT "Arr1"          THEN "PassedRev1" := FALSE; END_IF;
+IF NOT "Arr1"           THEN "PassedRev1" := FALSE; END_IF;
 
-// === N10..N13: CHOT hien dien pallet Arr_i (giu qua vung chet) ===
-//  SET khi co cam bien tren bang; RESET khi pallet DA sang bang ke / da xa ra ngoai.
+// === CHOT hien dien pallet (giu qua vung chet) ===
 IF "Occ1" THEN "Arr1" := TRUE; END_IF;
 IF NOT "Occ1" AND (("FWD_Mode" AND "Occ2") OR ("REV_Mode" AND "PassedRev1"))
    THEN "Arr1" := FALSE; END_IF;
@@ -57,20 +68,46 @@ IF "Occ4" THEN "Arr4" := TRUE; END_IF;
 IF NOT "Occ4" AND (("FWD_Mode" AND "PassedFwd4") OR ("REV_Mode" AND "Occ3"))
    THEN "Arr4" := FALSE; END_IF;
 
-// === N14..N17: Ngo ra motor THUAN ===
-//  Chay neu co pallet tren bang (Arr) va KHONG dang dung cho o cam bien cuoi vi bang ke ban.
-"CV1_FWD" := "FWD_Mode" AND "Arr1" AND "Safety_OK" AND NOT ("S1B" AND "Occ2");
-"CV2_FWD" := "FWD_Mode" AND "Arr2" AND "Safety_OK" AND NOT ("S2B" AND "Occ3");
-"CV3_FWD" := "FWD_Mode" AND "Arr3" AND "Safety_OK" AND NOT ("S3B" AND "Occ4");
+// === Timer DELAY: dem khi bang ke da trong hoan toan ===
+//   THUAN: T_F(n) dem khi CV(n+1) trong.   NGHICH: T_R(n) dem khi CV(n-1) trong.
+T_F1(IN := "FWD_Mode" AND NOT "Arr2", PT := T_CHECK);
+T_F2(IN := "FWD_Mode" AND NOT "Arr3", PT := T_CHECK);
+T_F3(IN := "FWD_Mode" AND NOT "Arr4", PT := T_CHECK);
+T_R2(IN := "REV_Mode" AND NOT "Arr1", PT := T_CHECK);
+T_R3(IN := "REV_Mode" AND NOT "Arr2", PT := T_CHECK);
+T_R4(IN := "REV_Mode" AND NOT "Arr3", PT := T_CHECK);
+
+// === CHOT NHA (Release): cho phep tha pallet qua khi tới cam bien cuoi + het delay ===
+//   Giu chot tới khi pallet roi han bang (NOT Arr_n) de khong ket khi dang sang bang.
+IF "S1B" AND T_F1.Q THEN "Release_F1" := TRUE; END_IF;
+IF NOT "Arr1"       THEN "Release_F1" := FALSE; END_IF;
+IF "S2B" AND T_F2.Q THEN "Release_F2" := TRUE; END_IF;
+IF NOT "Arr2"       THEN "Release_F2" := FALSE; END_IF;
+IF "S3B" AND T_F3.Q THEN "Release_F3" := TRUE; END_IF;
+IF NOT "Arr3"       THEN "Release_F3" := FALSE; END_IF;
+
+IF "S2A" AND T_R2.Q THEN "Release_R2" := TRUE; END_IF;
+IF NOT "Arr2"       THEN "Release_R2" := FALSE; END_IF;
+IF "S3A" AND T_R3.Q THEN "Release_R3" := TRUE; END_IF;
+IF NOT "Arr3"       THEN "Release_R3" := FALSE; END_IF;
+IF "S4A" AND T_R4.Q THEN "Release_R4" := TRUE; END_IF;
+IF NOT "Arr4"       THEN "Release_R4" := FALSE; END_IF;
+
+// === NGO RA MOTOR THUAN ===
+//  Chay tu do tới cam bien cuoi (NOT S_nB); tai cam bien cuoi chi qua khi da duoc nha.
+"CV1_FWD" := "FWD_Mode" AND "Arr1" AND "Safety_OK" AND (NOT "S1B" OR "Release_F1");
+"CV2_FWD" := "FWD_Mode" AND "Arr2" AND "Safety_OK" AND (NOT "S2B" OR "Release_F2");
+"CV3_FWD" := "FWD_Mode" AND "Arr3" AND "Safety_OK" AND (NOT "S3B" OR "Release_F3");
 "CV4_FWD" := "FWD_Mode" AND "Arr4" AND "Safety_OK";              // bang xa
 
-// === N18..N21: Ngo ra motor NGHICH ===
-"CV4_REV" := "REV_Mode" AND "Arr4" AND "Safety_OK" AND NOT ("S4A" AND "Occ3");
-"CV3_REV" := "REV_Mode" AND "Arr3" AND "Safety_OK" AND NOT ("S3A" AND "Occ2");
-"CV2_REV" := "REV_Mode" AND "Arr2" AND "Safety_OK" AND NOT ("S2A" AND "Occ1");
+// === NGO RA MOTOR NGHICH ===
+"CV4_REV" := "REV_Mode" AND "Arr4" AND "Safety_OK" AND (NOT "S4A" OR "Release_R4");
+"CV3_REV" := "REV_Mode" AND "Arr3" AND "Safety_OK" AND (NOT "S3A" OR "Release_R3");
+"CV2_REV" := "REV_Mode" AND "Arr2" AND "Safety_OK" AND (NOT "S2A" OR "Release_R2");
 "CV1_REV" := "REV_Mode" AND "Arr1" AND "Safety_OK";              // bang xa
 
-// === N22: Den bao (tuy chon) ===
+// === Den bao ===
 "Lamp_FWD" := "FWD_Mode";
 "Lamp_REV" := "REV_Mode";
 "Lamp_EMG" := NOT "Safety_OK";
+END_FUNCTION_BLOCK
