@@ -26,7 +26,7 @@
 ```
 
 Giả định (sửa nếu khác phần cứng):
-1. 8 cảm biến (mỗi băng 2 đầu A/B).
+1. 8 cảm biến (mỗi băng 2 đầu A/B), loại **NO** → bit = **1 khi có pallet**, = 0 khi trống.
 2. 4 box nút (2 trạm × 2 box). Mỗi box: 1 nút **Thuận**, 1 nút **Nghịch**, 1 nút **Khẩn**.
    - Tất cả nút Thuận đấu song song → `FWD_PB`. Tất cả nút Nghịch song song → `REV_PB`.
    - Tất cả nút Khẩn (tiếp điểm NC) đấu **nối tiếp** thành chuỗi an toàn.
