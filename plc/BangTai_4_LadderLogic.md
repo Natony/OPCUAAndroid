@@ -1,9 +1,9 @@
 # Chương trình PLC – 4 băng tải vận chuyển Pallet (Ladder – TIA Portal)
 
-> PLC Siemens S7-1200 / S7-1500 (TIA Portal V1x). Ngôn ngữ **LAD**.
+> PLC Siemens S7-1200 / S7-1500 (TIA Portal). Ngôn ngữ **LAD**.
 > Mỗi tiếp điểm hiển thị **tên tag** (trên) và **địa chỉ tuyệt đối** (dưới) đúng kiểu TIA.
-> **Đã bỏ cửa nâng** – tuyến chỉ còn 4 băng nối tiếp.
-> File `BangTai_4.scl` là bản nguồn SCL tương đương (import nhanh nếu muốn).
+> **Không có cửa nâng.** Cảm biến loại **NO** (bit = 1 khi có pallet).
+> File `BangTai_4.scl` là bản nguồn SCL tương đương (import nhanh).
 
 ---
 
@@ -20,18 +20,24 @@
    └────────┘   └────────┘   └────────┘   └────────┘
    ◄───────────────────────────────────────  CHIỀU NGHỊCH
 
-   • A = đầu trái, B = đầu phải (mỗi băng 2 cảm biến).
-   • THUẬN : nạp pallet ở S1A, xả ở S4B.
-   • NGHỊCH: nạp pallet ở S4B, xả ở S1A.
+   • A = đầu trái, B = đầu phải (mỗi băng 2 cảm biến NO).
+   • Giữa S_iA và S_iB có "VÙNG CHẾT" (pallet không che cảm biến nào).
+   • THUẬN : nạp pallet ở S1A, xả ở S4B.  NGHỊCH: nạp ở S4B, xả ở S1A.
 ```
 
 Giả định (sửa nếu khác phần cứng):
-1. 8 cảm biến (mỗi băng 2 đầu A/B), loại **NO** → bit = **1 khi có pallet**, = 0 khi trống.
+1. 8 cảm biến NO (mỗi băng 2 đầu A/B) → bit = **1 khi có pallet**.
 2. 4 box nút (2 trạm × 2 box). Mỗi box: 1 nút **Thuận**, 1 nút **Nghịch**, 1 nút **Khẩn**.
-   - Tất cả nút Thuận đấu song song → `FWD_PB`. Tất cả nút Nghịch song song → `REV_PB`.
-   - Tất cả nút Khẩn (tiếp điểm NC) đấu **nối tiếp** thành chuỗi an toàn.
-3. **Tách hàng (accumulation):** một băng chỉ đẩy pallet sang băng kế khi băng đó đang
-   trống → các pallet luôn cách nhau ≥ 1 băng.
+   - Nút Thuận song song → `FWD_PB`; nút Nghịch song song → `REV_PB`.
+   - Nút Khẩn (NC) nối tiếp → chuỗi an toàn `Safety_OK`.
+3. **Tách hàng:** một băng chỉ thả pallet sang băng kế khi băng đó trống; nếu băng kế bận,
+   pallet **dừng chờ ngay tại cảm biến cuối băng** (không dừng ở vùng chết).
+
+### ★ Điểm sửa quan trọng so với bản trước
+Trước đây băng chạy theo `Occ_i` tức thời nên **pallet vừa rời cảm biến đầu là băng dừng**
+(kẹt ở vùng chết). Bản này dùng bit **chốt `Arr_i`**: pallet vào băng → chốt = 1 và
+**giữ nguyên qua vùng chết**; chỉ nhả chốt khi pallet đã sang băng kế (hoặc xả hết ra
+ngoài). → Băng chạy liên tục tới khi giao hàng xong.
 
 ---
 
@@ -56,7 +62,7 @@ Giả định (sửa nếu khác phần cứng):
 | `PB_R1_REV` | %I1.5 | Nút Nghịch Box R1 |
 | `PB_R2_FWD` | %I1.6 | Nút Thuận Box R2 |
 | `PB_R2_REV` | %I1.7 | Nút Nghịch Box R2 |
-| `EMG_L1` | %I2.0 | Nút khẩn Box L1 (NC = 1 khi bình thường) |
+| `EMG_L1` | %I2.0 | Nút khẩn Box L1 (NC = 1 bình thường) |
 | `EMG_L2` | %I2.1 | Nút khẩn Box L2 (NC) |
 | `EMG_R1` | %I2.2 | Nút khẩn Box R1 (NC) |
 | `EMG_R2` | %I2.3 | Nút khẩn Box R2 (NC) |
@@ -85,24 +91,22 @@ Giả định (sửa nếu khác phần cứng):
 | `Line_Empty` | %M10.3 | Toàn tuyến trống |
 | `FWD_Mode` | %M10.4 | Chế độ thuận đang khóa |
 | `REV_Mode` | %M10.5 | Chế độ nghịch đang khóa |
-| `Occ1` | %M11.0 | CV1 có pallet |
-| `Occ2` | %M11.1 | CV2 có pallet |
-| `Occ3` | %M11.2 | CV3 có pallet |
-| `Occ4` | %M11.3 | CV4 có pallet |
-| `REL1F` | %M12.0 | CV1 đẩy sang CV2 (thuận) |
-| `REL2F` | %M12.1 | CV2 đẩy sang CV3 (thuận) |
-| `REL3F` | %M12.2 | CV3 đẩy sang CV4 (thuận) |
-| `REL4F` | %M12.3 | CV4 xả ra ngoài (thuận) |
-| `REL4R` | %M13.0 | CV4 đẩy sang CV3 (nghịch) |
-| `REL3R` | %M13.1 | CV3 đẩy sang CV2 (nghịch) |
-| `REL2R` | %M13.2 | CV2 đẩy sang CV1 (nghịch) |
-| `REL1R` | %M13.3 | CV1 xả ra ngoài (nghịch) |
+| `Occ1` | %M11.0 | CV1 có cảm biến tác động (tức thời) |
+| `Occ2` | %M11.1 | CV2 có cảm biến tác động |
+| `Occ3` | %M11.2 | CV3 có cảm biến tác động |
+| `Occ4` | %M11.3 | CV4 có cảm biến tác động |
+| `Arr1` | %M12.0 | **Chốt:** CV1 đang có pallet (giữ qua vùng chết) |
+| `Arr2` | %M12.1 | **Chốt:** CV2 đang có pallet |
+| `Arr3` | %M12.2 | **Chốt:** CV3 đang có pallet |
+| `Arr4` | %M12.3 | **Chốt:** CV4 đang có pallet |
+| `PassedFwd4` | %M12.4 | Pallet đã tới cảm biến xả thuận (S4B) |
+| `PassedRev1` | %M12.5 | Pallet đã tới cảm biến xả nghịch (S1A) |
 
 ---
 
-## 3. Chương trình LAD (OB1 hoặc FC "Bang_Tai_4")
+## 3. Chương trình LAD
 
-Ký hiệu TIA: `┤ ├` thường mở (NO) · `┤/├` thường đóng (NC) · `( )` cuộn dây.
+Ký hiệu TIA: `┤ ├` thường mở · `┤/├` thường đóng · `( )` cuộn · `( S )` set · `( R )` reset.
 
 ### Network 1 — Chuỗi an toàn (4 nút khẩn NC nối tiếp)
 ```
@@ -113,34 +117,18 @@ Ký hiệu TIA: `┤ ├` thường mở (NO) · `┤/├` thường đóng (NC)
 
 ### Network 2 — Gom nút Thuận
 ```
-   "PB_L1_FWD"                                              "FWD_PB"
-     %I1.0                                                   %M10.1
-  ────┤ ├───┬───────────────────────────────────────────────( )──────
-   "PB_L2_FWD"│
-     %I1.2  │
-  ────┤ ├───┤
-   "PB_R1_FWD"│
-     %I1.4  │
-  ────┤ ├───┤
-   "PB_R2_FWD"│
-     %I1.6  │
-  ────┤ ├───┘
+   "PB_L1_FWD"   "PB_L2_FWD"   "PB_R1_FWD"   "PB_R2_FWD"     "FWD_PB"
+     %I1.0         %I1.2         %I1.4         %I1.6          %M10.1
+  ────┤ ├───┬───────┤ ├───┬───────┤ ├───┬───────┤ ├────────────( )──────
+            └─────────────┴─────────────┘  (đấu song song)
 ```
 
 ### Network 3 — Gom nút Nghịch
 ```
-   "PB_L1_REV"                                              "REV_PB"
-     %I1.1                                                   %M10.2
-  ────┤ ├───┬───────────────────────────────────────────────( )──────
-   "PB_L2_REV"│
-     %I1.3  │
-  ────┤ ├───┤
-   "PB_R1_REV"│
-     %I1.5  │
-  ────┤ ├───┤
-   "PB_R2_REV"│
-     %I1.7  │
-  ────┤ ├───┘
+   "PB_L1_REV"   "PB_L2_REV"   "PB_R1_REV"   "PB_R2_REV"     "REV_PB"
+     %I1.1         %I1.3         %I1.5         %I1.7          %M10.2
+  ────┤ ├───┬───────┤ ├───┬───────┤ ├───┬───────┤ ├────────────( )──────
+            └─────────────┴─────────────┘  (đấu song song)
 ```
 
 ### Network 4 — Tuyến trống (Line Empty)
@@ -150,7 +138,7 @@ Ký hiệu TIA: `┤ ├` thường mở (NO) · `┤/├` thường đóng (NC)
   ──┤/├────┤/├────┤/├────┤/├────┤/├────┤/├────┤/├────┤/├───────( )──────
 ```
 
-### Network 5 — Chiếm chỗ từng băng (Occupancy)
+### Network 5 — Cảm biến tức thời từng băng (Occupancy)
 ```
    "S1A"                 "Occ1"           "S2A"                 "Occ2"
    %I0.0                 %M11.0           %I0.2                 %M11.1
@@ -168,7 +156,6 @@ Ký hiệu TIA: `┤ ├` thường mở (NO) · `┤/├` thường đóng (NC)
 ```
 
 ### Network 6 — Khóa chế độ THUẬN (seal-in)
-> Đặt: pallet ở S1A + nút Thuận + không đang nghịch. Giữ tới khi tuyến trống / mất an toàn.
 ```
    "FWD_PB"  "S1A"  "REV_Mode"      "Safety_OK"  "Line_Empty"   "FWD_Mode"
     %M10.1   %I0.0   %M10.5          %M10.0       %M10.3         %M10.4
@@ -190,147 +177,169 @@ Ký hiệu TIA: `┤ ├` thường mở (NO) · `┤/├` thường đóng (NC)
 
 ---
 
-### THUẬN — điều kiện nhả hàng (Release)
+### CHỐT HIỆN DIỆN PALLET (xử lý vùng chết)
 
-### Network 8 — REL1F: CV1 → CV2 (CV2 trống)
+### Network 8 — PassedFwd4: pallet đã tới cảm biến xả thuận
 ```
-   "FWD_Mode"  "Occ1"  "Occ2"                                "REL1F"
-    %M10.4     %M11.0  %M11.1                                 %M12.0
-  ────┤ ├───────┤ ├─────┤/├───────────────────────────────────( )──────
-```
+   "FWD_Mode"  "S4B"                                         "PassedFwd4"
+    %M10.4     %I0.7                                          %M12.4
+  ────┤ ├───────┤ ├────────────────────────────────────────────( S )────
 
-### Network 9 — REL2F: CV2 → CV3 (CV3 trống)
-```
-   "FWD_Mode"  "Occ2"  "Occ3"                                "REL2F"
-    %M10.4     %M11.1  %M11.2                                 %M12.1
-  ────┤ ├───────┤ ├─────┤/├───────────────────────────────────( )──────
+   "Arr4"                                                     "PassedFwd4"
+   %M12.3                                                      %M12.4
+  ───┤/├───────────────────────────────────────────────────────( R )────
 ```
 
-### Network 10 — REL3F: CV3 → CV4 (CV4 trống)
+### Network 9 — PassedRev1: pallet đã tới cảm biến xả nghịch
 ```
-   "FWD_Mode"  "Occ3"  "Occ4"                                "REL3F"
-    %M10.4     %M11.2  %M11.3                                 %M12.2
-  ────┤ ├───────┤ ├─────┤/├───────────────────────────────────( )──────
+   "REV_Mode"  "S1A"                                         "PassedRev1"
+    %M10.5     %I0.0                                          %M12.5
+  ────┤ ├───────┤ ├────────────────────────────────────────────( S )────
+
+   "Arr1"                                                     "PassedRev1"
+   %M12.0                                                      %M12.5
+  ───┤/├───────────────────────────────────────────────────────( R )────
 ```
 
-### Network 11 — REL4F: CV4 xả ra ngoài
+### Network 10 — Arr1 (chốt pallet trên CV1)
+> SET: có cảm biến trên CV1. RESET: pallet đã rời CV1 sang CV2 (thuận) hoặc xả nghịch.
 ```
-   "FWD_Mode"  "Occ4"                                        "REL4F"
-    %M10.4     %M11.3                                         %M12.3
-  ────┤ ├───────┤ ├────────────────────────────────────────────( )──────
+   "Occ1"                                                     "Arr1"
+   %M11.0                                                      %M12.0
+  ────┤ ├──────────────────────────────────────────────────────( S )────
+
+   "Occ1"     "FWD_Mode"  "Occ2"                              "Arr1"
+   %M11.0     %M10.4      %M11.1                               %M12.0
+  ───┤/├───┬────┤ ├─────────┤ ├──────┐                          ( R )────
+           │  "REV_Mode" "PassedRev1"│
+           │   %M10.5     %M12.5     │
+           └────┤ ├─────────┤ ├──────┘
+```
+
+### Network 11 — Arr2 (chốt pallet trên CV2)
+```
+   "Occ2"                                                     "Arr2"
+   %M11.1                                                      %M12.1
+  ────┤ ├──────────────────────────────────────────────────────( S )────
+
+   "Occ2"     "FWD_Mode"  "Occ3"                              "Arr2"
+   %M11.1     %M10.4      %M11.2                               %M12.1
+  ───┤/├───┬────┤ ├─────────┤ ├──────┐                          ( R )────
+           │  "REV_Mode"  "Occ1"     │
+           │   %M10.5     %M11.0      │
+           └────┤ ├─────────┤ ├──────┘
+```
+
+### Network 12 — Arr3 (chốt pallet trên CV3)
+```
+   "Occ3"                                                     "Arr3"
+   %M11.2                                                      %M12.2
+  ────┤ ├──────────────────────────────────────────────────────( S )────
+
+   "Occ3"     "FWD_Mode"  "Occ4"                              "Arr3"
+   %M11.2     %M10.4      %M11.3                               %M12.2
+  ───┤/├───┬────┤ ├─────────┤ ├──────┐                          ( R )────
+           │  "REV_Mode"  "Occ2"     │
+           │   %M10.5     %M11.1      │
+           └────┤ ├─────────┤ ├──────┘
+```
+
+### Network 13 — Arr4 (chốt pallet trên CV4)
+```
+   "Occ4"                                                     "Arr4"
+   %M11.3                                                      %M12.3
+  ────┤ ├──────────────────────────────────────────────────────( S )────
+
+   "Occ4"    "FWD_Mode" "PassedFwd4"                          "Arr4"
+   %M11.3     %M10.4     %M12.4                                %M12.3
+  ───┤/├───┬────┤ ├─────────┤ ├──────┐                          ( R )────
+           │  "REV_Mode"  "Occ3"     │
+           │   %M10.5     %M11.2      │
+           └────┤ ├─────────┤ ├──────┘
 ```
 
 ---
 
-### NGHỊCH — điều kiện nhả hàng (Release)
+### NGÕ RA MOTOR
+> Chạy = đang khóa chiều đó **AND** trên băng có pallet (chốt) **AND** không phải đang
+> "đứng chờ ở cảm biến cuối vì băng kế bận" **AND** an toàn OK.
+> Điều kiện chờ NOT(S_iB AND Occ_kế) = nhánh song song ┤/S_iB├ // ┤/Occ_kế├ (định luật De Morgan).
 
-### Network 12 — REL4R: CV4 → CV3 (CV3 trống)
+### Network 14 — CV1 THUẬN
 ```
-   "REV_Mode"  "Occ4"  "Occ3"                                "REL4R"
-    %M10.5     %M11.3  %M11.2                                 %M13.0
-  ────┤ ├───────┤ ├─────┤/├───────────────────────────────────( )──────
-```
-
-### Network 13 — REL3R: CV3 → CV2 (CV2 trống)
-```
-   "REV_Mode"  "Occ3"  "Occ2"                                "REL3R"
-    %M10.5     %M11.2  %M11.1                                 %M13.1
-  ────┤ ├───────┤ ├─────┤/├───────────────────────────────────( )──────
-```
-
-### Network 14 — REL2R: CV2 → CV1 (CV1 trống)
-```
-   "REV_Mode"  "Occ2"  "Occ1"                                "REL2R"
-    %M10.5     %M11.1  %M11.0                                 %M13.2
-  ────┤ ├───────┤ ├─────┤/├───────────────────────────────────( )──────
+   "FWD_Mode" "Arr1"  "Safety_OK"   "S1B"            "CV1_FWD"
+    %M10.4    %M12.0   %M10.0        %I0.1            %Q0.0
+  ────┤ ├──────┤ ├──────┤ ├─────┬─────┤/├────┬─────────( )──────
+                              │   "Occ2"   │
+                              │   %M11.1   │
+                              └─────┤/├────┘
 ```
 
-### Network 15 — REL1R: CV1 xả ra ngoài
+### Network 15 — CV2 THUẬN
 ```
-   "REV_Mode"  "Occ1"                                        "REL1R"
-    %M10.5     %M11.0                                         %M13.3
-  ────┤ ├───────┤ ├────────────────────────────────────────────( )──────
-```
-
----
-
-### Ngõ ra MOTOR  (chạy = đang nhả ra HOẶC nhận từ băng trước)
-
-### Network 16 — CV1 THUẬN
-```
-   "REL1F"   "Safety_OK"                                     "CV1_FWD"
-    %M12.0    %M10.0                                          %Q0.0
-  ────┤ ├──────┤ ├─────────────────────────────────────────────( )──────
+   "FWD_Mode" "Arr2"  "Safety_OK"   "S2B"            "CV2_FWD"
+    %M10.4    %M12.1   %M10.0        %I0.3            %Q0.2
+  ────┤ ├──────┤ ├──────┤ ├─────┬─────┤/├────┬─────────( )──────
+                              │   "Occ3"   │
+                              │   %M11.2   │
+                              └─────┤/├────┘
 ```
 
-### Network 17 — CV2 THUẬN (nhả REL2F hoặc nhận từ CV1 = REL1F)
+### Network 16 — CV3 THUẬN
 ```
-   "REL2F"   "Safety_OK"                                     "CV2_FWD"
-    %M12.1    %M10.0                                          %Q0.2
-  ────┤ ├──┬───┤ ├─────────────────────────────────────────────( )──────
-   "REL1F" │
-    %M12.0 │
-  ────┤ ├──┘
-```
-
-### Network 18 — CV3 THUẬN (nhả REL3F hoặc nhận từ CV2 = REL2F)
-```
-   "REL3F"   "Safety_OK"                                     "CV3_FWD"
-    %M12.2    %M10.0                                          %Q0.4
-  ────┤ ├──┬───┤ ├─────────────────────────────────────────────( )──────
-   "REL2F" │
-    %M12.1 │
-  ────┤ ├──┘
+   "FWD_Mode" "Arr3"  "Safety_OK"   "S3B"            "CV3_FWD"
+    %M10.4    %M12.2   %M10.0        %I0.5            %Q0.4
+  ────┤ ├──────┤ ├──────┤ ├─────┬─────┤/├────┬─────────( )──────
+                              │   "Occ4"   │
+                              │   %M11.3   │
+                              └─────┤/├────┘
 ```
 
-### Network 19 — CV4 THUẬN (xả REL4F hoặc nhận từ CV3 = REL3F)
+### Network 17 — CV4 THUẬN (băng xả, không có băng kế)
 ```
-   "REL4F"   "Safety_OK"                                     "CV4_FWD"
-    %M12.3    %M10.0                                          %Q0.6
-  ────┤ ├──┬───┤ ├─────────────────────────────────────────────( )──────
-   "REL3F" │
-    %M12.2 │
-  ────┤ ├──┘
+   "FWD_Mode" "Arr4"  "Safety_OK"                    "CV4_FWD"
+    %M10.4    %M12.3   %M10.0                          %Q0.6
+  ────┤ ├──────┤ ├──────┤ ├────────────────────────────( )──────
 ```
 
-### Network 20 — CV4 NGHỊCH
+### Network 18 — CV4 NGHỊCH
 ```
-   "REL4R"   "Safety_OK"                                     "CV4_REV"
-    %M13.0    %M10.0                                          %Q0.7
-  ────┤ ├──────┤ ├─────────────────────────────────────────────( )──────
-```
-
-### Network 21 — CV3 NGHỊCH (nhả REL3R hoặc nhận từ CV4 = REL4R)
-```
-   "REL3R"   "Safety_OK"                                     "CV3_REV"
-    %M13.1    %M10.0                                          %Q0.5
-  ────┤ ├──┬───┤ ├─────────────────────────────────────────────( )──────
-   "REL4R" │
-    %M13.0 │
-  ────┤ ├──┘
+   "REV_Mode" "Arr4"  "Safety_OK"   "S4A"            "CV4_REV"
+    %M10.5    %M12.3   %M10.0        %I0.6            %Q0.7
+  ────┤ ├──────┤ ├──────┤ ├─────┬─────┤/├────┬─────────( )──────
+                              │   "Occ3"   │
+                              │   %M11.2   │
+                              └─────┤/├────┘
 ```
 
-### Network 22 — CV2 NGHỊCH (nhả REL2R hoặc nhận từ CV3 = REL3R)
+### Network 19 — CV3 NGHỊCH
 ```
-   "REL2R"   "Safety_OK"                                     "CV2_REV"
-    %M13.2    %M10.0                                          %Q0.3
-  ────┤ ├──┬───┤ ├─────────────────────────────────────────────( )──────
-   "REL3R" │
-    %M13.1 │
-  ────┤ ├──┘
-```
-
-### Network 23 — CV1 NGHỊCH (xả REL1R hoặc nhận từ CV2 = REL2R)
-```
-   "REL1R"   "Safety_OK"                                     "CV1_REV"
-    %M13.3    %M10.0                                          %Q0.1
-  ────┤ ├──┬───┤ ├─────────────────────────────────────────────( )──────
-   "REL2R" │
-    %M13.2 │
-  ────┤ ├──┘
+   "REV_Mode" "Arr3"  "Safety_OK"   "S3A"            "CV3_REV"
+    %M10.5    %M12.2   %M10.0        %I0.4            %Q0.5
+  ────┤ ├──────┤ ├──────┤ ├─────┬─────┤/├────┬─────────( )──────
+                              │   "Occ2"   │
+                              │   %M11.1   │
+                              └─────┤/├────┘
 ```
 
-### Network 24 — Đèn báo (tùy chọn)
+### Network 20 — CV2 NGHỊCH
+```
+   "REV_Mode" "Arr2"  "Safety_OK"   "S2A"            "CV2_REV"
+    %M10.5    %M12.1   %M10.0        %I0.2            %Q0.3
+  ────┤ ├──────┤ ├──────┤ ├─────┬─────┤/├────┬─────────( )──────
+                              │   "Occ1"   │
+                              │   %M11.0   │
+                              └─────┤/├────┘
+```
+
+### Network 21 — CV1 NGHỊCH (băng xả nghịch, không có băng kế)
+```
+   "REV_Mode" "Arr1"  "Safety_OK"                    "CV1_REV"
+    %M10.5    %M12.0   %M10.0                          %Q0.1
+  ────┤ ├──────┤ ├──────┤ ├────────────────────────────( )──────
+```
+
+### Network 22 — Đèn báo (tùy chọn)
 ```
    "FWD_Mode"                                                "Lamp_FWD"
     %M10.4                                                    %Q1.0
@@ -347,30 +356,34 @@ Ký hiệu TIA: `┤ ├` thường mở (NO) · `┤/├` thường đóng (NC)
 
 ---
 
-## 4. Diễn giải một chu trình (chiều thuận)
+## 4. Diễn giải một chu trình (chiều thuận) — vì sao hết kẹt vùng chết
 
-1. Đặt pallet lên đầu CV1 → `S1A=1`. Nhấn nút Thuận → khóa `FWD_Mode` (N6).
-2. `Occ1=1`, `Occ2=0` → `REL1F=1` → CV1 & CV2 cùng chạy (N16, N17) đưa pallet sang CV2.
-3. Pallet sang CV2 → `Occ2=1`, `Occ1=0` → `REL1F=0` (CV1 dừng); `REL2F` đưa tiếp sang CV3…
-4. Lần lượt qua CV3 (`REL3F`), CV4 (`REL3F` nhận), rồi xả ra ngoài (`REL4F`).
-5. **Tách hàng:** pallet sau chỉ tiến khi băng trước nó đã trống → tự giữ khoảng cách.
-6. Hết pallet → `Line_Empty=1` → nhả `FWD_Mode`. Nhấn **Khẩn** bất cứ lúc nào → `Safety_OK=0`
-   → cắt toàn bộ motor + reset chế độ.
+1. Đặt pallet lên đầu CV1 → `S1A=1` → `Occ1=1`. Nhấn nút Thuận → khóa `FWD_Mode` (N6).
+2. `Occ1=1` → **`Arr1` SET** (N10). CV1 chạy (N14).
+3. Pallet rời S1A, **chưa tới S1B** → `Occ1=0` **nhưng `Arr1` vẫn = 1** (điều kiện reset
+   cần pallet đã sang CV2 — chưa xảy ra) → **CV1 tiếp tục chạy** qua vùng chết. ✅ Hết kẹt.
+4. Pallet tới S1B. Nếu CV2 trống (`Occ2=0`) → CV1 chạy tiếp, pallet sang CV2.
+   `Occ2=1` → `Arr2` SET, CV2 chạy nhận hàng; khi đuôi pallet rời hẳn CV1
+   (`Occ1=0` & `Occ2=1`) → **`Arr1` RESET** → CV1 dừng.
+5. **Tách hàng:** nếu pallet tới S1B mà CV2 đang bận (`Occ2=1`) → nhánh `NOT(S1B AND Occ2)=0`
+   → CV1 **dừng chờ ngay tại S1B** (tại cảm biến, không phải vùng chết). CV2 trống thì chạy lại.
+6. Tương tự qua CV3, CV4. Ở CV4, khi pallet tới `S4B` → `PassedFwd4` SET; xả hết ra ngoài
+   (`Occ4=0` & `PassedFwd4=1`) → `Arr4` RESET → CV4 dừng.
+7. Hết pallet → `Line_Empty=1` → nhả `FWD_Mode`. Nhấn **Khẩn** → cắt toàn bộ motor.
 
-Chiều nghịch đối xứng (nạp ở `S4B`, xả ở `S1A`).
+Chiều nghịch đối xứng (nạp `S4B`, xả `S1A`, dùng `PassedRev1`).
 
 ---
 
-## 5. Cách đưa vào TIA Portal
+## 5. Đưa vào TIA Portal
+- **LAD trực tiếp:** tạo Tag table (Mục 2) rồi vẽ 22 network (Mục 3) vào OB1/FC.
+- **Nhanh:** External source files → Add `BangTai_4.scl` → *Generate blocks from source*.
 
-- **Cách 1 (LAD trực tiếp):** tạo Tag table theo Mục 2, rồi vẽ lại 24 network ở Mục 3
-  trong khối OB1 hoặc FC (mỗi network 1 đoạn).
-- **Cách 2 (nhanh):** Project tree → **External source files → Add new external file** →
-  chọn `BangTai_4.scl` → chuột phải **Generate blocks from source**. Sau đó có thể
-  đổi ngôn ngữ khối sang LAD nếu muốn.
-
-## 6. Khuyến nghị an toàn (nên bổ sung)
-- Nối tiếp tiếp điểm **relay nhiệt / lỗi biến tần** vào từng network ngõ ra motor.
-- Thêm ON-delay ~50–100 ms khử nhiễu cảm biến nếu rung động nhiều.
-- `FWD_Mode` và `REV_Mode` đã loại trừ nhau (N6/N7) nên ngõ ra thuận/nghịch cùng motor
-  không bật đồng thời; muốn chắc chắn có thể thêm `┤/├ CVx_REV` nối tiếp ở rung `CVx_FWD`.
+## 6. Khuyến nghị
+- Nối tiếp tiếp điểm **relay nhiệt / lỗi biến tần** vào mỗi network ngõ ra motor.
+- Thêm ON-delay ~30–80 ms khử nhiễu cảm biến nếu rung động.
+- **Cảm biến NO** sẽ fail-danger khi đứt dây (đọc = trống). Nếu cần an toàn cao, dùng cảm
+  biến NC. Nút Khẩn đã để NC (fail-safe).
+- Sau khi nhấn Khẩn giữa chừng, `FWD_Mode/REV_Mode` bị nhả (vì cần `Safety_OK`); muốn chạy
+  lại phải đặt pallet ở cảm biến đầu chiều tương ứng rồi nhấn nút lại (các chốt `Arr_i`
+  vẫn giữ vị trí pallet trong tuyến).

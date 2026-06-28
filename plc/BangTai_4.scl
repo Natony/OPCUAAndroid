@@ -1,10 +1,9 @@
 // ============================================================================
 //  FC: Bang_Tai_4  -  Dieu khien 4 bang tai van chuyen Pallet 2 chieu
-//  - Tach hang (accumulation): zone chi day khi zone ke tiep trong
-//  - Chuoi an toan nut khan (NC noi tiep)
-//  - DA BO CUA NANG (tuyen chi con 4 bang noi tiep)
+//  - Tach hang (accumulation): pallet dung cho TAI cam bien cuoi bang neu bang ke ban
+//  - CHOT hien dien pallet (Arr_i) -> KHONG dung o vung chet giua 2 cam bien
+//  - Chuoi an toan nut khan (NC noi tiep). Cam bien NO (1 = co pallet).
 //  Tuong duong 1:1 voi ban Ladder trong BangTai_4_LadderLogic.md
-//  Platform: Siemens S7-1200/1500 (TIA Portal).
 //  Cach dung: External source files -> Add -> Generate blocks from source.
 // ============================================================================
 
@@ -19,7 +18,7 @@
 "Line_Empty" := NOT ("S1A" OR "S1B" OR "S2A" OR "S2B"
                   OR "S3A" OR "S3B" OR "S4A" OR "S4B");
 
-// === N5: Chiem cho tung bang ===
+// === N5: Cam bien tuc thoi tung bang ===
 "Occ1" := "S1A" OR "S1B";
 "Occ2" := "S2A" OR "S2B";
 "Occ3" := "S3A" OR "S3B";
@@ -33,31 +32,45 @@
 "REV_Mode" := (("REV_PB" AND "S4B" AND NOT "FWD_Mode") OR "REV_Mode")
               AND "Safety_OK" AND NOT "Line_Empty";
 
-// === N8..N11: Release chieu THUAN ===
-"REL1F" := "FWD_Mode" AND "Occ1" AND NOT "Occ2";
-"REL2F" := "FWD_Mode" AND "Occ2" AND NOT "Occ3";
-"REL3F" := "FWD_Mode" AND "Occ3" AND NOT "Occ4";
-"REL4F" := "FWD_Mode" AND "Occ4";                       // xa ra ngoai
+// === N8/N9: Co "da toi cam bien xa" (xac nhan da qua bang cuoi truoc khi nha chot) ===
+IF "FWD_Mode" AND "S4B" THEN "PassedFwd4" := TRUE; END_IF;
+IF NOT "Arr4"          THEN "PassedFwd4" := FALSE; END_IF;
 
-// === N12..N15: Release chieu NGHICH ===
-"REL4R" := "REV_Mode" AND "Occ4" AND NOT "Occ3";
-"REL3R" := "REV_Mode" AND "Occ3" AND NOT "Occ2";
-"REL2R" := "REV_Mode" AND "Occ2" AND NOT "Occ1";
-"REL1R" := "REV_Mode" AND "Occ1";                       // xa ra ngoai
+IF "REV_Mode" AND "S1A" THEN "PassedRev1" := TRUE; END_IF;
+IF NOT "Arr1"          THEN "PassedRev1" := FALSE; END_IF;
 
-// === N16..N19: Ngo ra motor THUAN (nha ra HOAC nhan tu bang truoc) ===
-"CV1_FWD" := "REL1F" AND "Safety_OK";
-"CV2_FWD" := ("REL2F" OR "REL1F") AND "Safety_OK";
-"CV3_FWD" := ("REL3F" OR "REL2F") AND "Safety_OK";
-"CV4_FWD" := ("REL4F" OR "REL3F") AND "Safety_OK";
+// === N10..N13: CHOT hien dien pallet Arr_i (giu qua vung chet) ===
+//  SET khi co cam bien tren bang; RESET khi pallet DA sang bang ke / da xa ra ngoai.
+IF "Occ1" THEN "Arr1" := TRUE; END_IF;
+IF NOT "Occ1" AND (("FWD_Mode" AND "Occ2") OR ("REV_Mode" AND "PassedRev1"))
+   THEN "Arr1" := FALSE; END_IF;
 
-// === N20..N23: Ngo ra motor NGHICH ===
-"CV4_REV" := "REL4R" AND "Safety_OK";
-"CV3_REV" := ("REL3R" OR "REL4R") AND "Safety_OK";
-"CV2_REV" := ("REL2R" OR "REL3R") AND "Safety_OK";
-"CV1_REV" := ("REL1R" OR "REL2R") AND "Safety_OK";
+IF "Occ2" THEN "Arr2" := TRUE; END_IF;
+IF NOT "Occ2" AND (("FWD_Mode" AND "Occ3") OR ("REV_Mode" AND "Occ1"))
+   THEN "Arr2" := FALSE; END_IF;
 
-// === N24: Den bao (tuy chon) ===
+IF "Occ3" THEN "Arr3" := TRUE; END_IF;
+IF NOT "Occ3" AND (("FWD_Mode" AND "Occ4") OR ("REV_Mode" AND "Occ2"))
+   THEN "Arr3" := FALSE; END_IF;
+
+IF "Occ4" THEN "Arr4" := TRUE; END_IF;
+IF NOT "Occ4" AND (("FWD_Mode" AND "PassedFwd4") OR ("REV_Mode" AND "Occ3"))
+   THEN "Arr4" := FALSE; END_IF;
+
+// === N14..N17: Ngo ra motor THUAN ===
+//  Chay neu co pallet tren bang (Arr) va KHONG dang dung cho o cam bien cuoi vi bang ke ban.
+"CV1_FWD" := "FWD_Mode" AND "Arr1" AND "Safety_OK" AND NOT ("S1B" AND "Occ2");
+"CV2_FWD" := "FWD_Mode" AND "Arr2" AND "Safety_OK" AND NOT ("S2B" AND "Occ3");
+"CV3_FWD" := "FWD_Mode" AND "Arr3" AND "Safety_OK" AND NOT ("S3B" AND "Occ4");
+"CV4_FWD" := "FWD_Mode" AND "Arr4" AND "Safety_OK";              // bang xa
+
+// === N18..N21: Ngo ra motor NGHICH ===
+"CV4_REV" := "REV_Mode" AND "Arr4" AND "Safety_OK" AND NOT ("S4A" AND "Occ3");
+"CV3_REV" := "REV_Mode" AND "Arr3" AND "Safety_OK" AND NOT ("S3A" AND "Occ2");
+"CV2_REV" := "REV_Mode" AND "Arr2" AND "Safety_OK" AND NOT ("S2A" AND "Occ1");
+"CV1_REV" := "REV_Mode" AND "Arr1" AND "Safety_OK";              // bang xa
+
+// === N22: Den bao (tuy chon) ===
 "Lamp_FWD" := "FWD_Mode";
 "Lamp_REV" := "REV_Mode";
 "Lamp_EMG" := NOT "Safety_OK";
