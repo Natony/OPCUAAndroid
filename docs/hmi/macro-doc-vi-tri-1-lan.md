@@ -96,3 +96,33 @@ Nếu vì lý do khác vẫn muốn macro chạy chu kỳ:
 
 Tùy chọn an toàn: nếu muốn chặn offset ngoài vùng, có thể kiểm tra biên `off`
 trong macro trước bước (4) và `return` nếu nằm ngoài dải cho phép.
+
+## Sửa lỗi: giá trị `pallet` hiển thị sai
+`pallet` là **DInt 32-bit** (`DBD26`), khác `oper/shut/func` là 16-bit. Hai
+nguyên nhân điển hình:
+
+### NN1 — Sai thứ tự word (Siemens big-endian) — hay gặp nhất
+Siemens lưu DInt word cao trước; macro Weintek ghép 2 word theo word thấp trước
+⇒ bị đảo word ⇒ `pallet` ra số rác/rất lớn/âm. Đọc tách 2 word và ghép tay:
+
+```c
+    short pw_hi, pw_lo
+    int   pallet
+    ...
+    GetData(pw_hi, "Master", DB20, 26 + off, 1)   // DBW26 = word CAO
+    GetData(pw_lo, "Master", DB20, 28 + off, 1)   // DBW28 = word THAP
+    pallet = pw_hi
+    pallet = (pallet << 16) | (pw_lo & 0xFFFF)
+```
+
+Nếu vẫn sai thì đảo lại (đọc `pw_lo` ở `26+off`, `pw_hi` ở `28+off`) — tùy word
+order của driver.
+
+### NN2 — Đối tượng hiển thị để 16-bit
+`pallet` ghi vào `LW-5000` chiếm **2 word** (`LW-5000`+`LW-5001`). Đối tượng
+Numeric hiển thị `LW-5000` phải đặt **Data format = 32-bit (DInt)**, đúng dấu
+signed/unsigned. Nếu để 16-bit sẽ chỉ hiện nửa giá trị ⇒ sai.
+
+### Khoanh vùng nhanh
+- Ra số rất lớn / âm bất thường ⇒ NN1 (đảo word).
+- Ra số nhỏ bị cụt (chỉ đúng khi < 65535) ⇒ NN2 (đối tượng để 16-bit).
